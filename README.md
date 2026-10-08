@@ -1,85 +1,102 @@
 # buddy-go
 
-住在 Claude Code 輸入框上方的吉祥物 buddy（Clawd）。平常來回走路，特定時機會播動畫。
+**Give your Claude Code prompt a tiny coworker.**
 
-```
- ▐▛███▛█
-▝▜██████▀
- ▝▝   ▝▝
-```
+Buddy (you may know it as Clawd, the Claude Code mascot) moves in right above your input box and reacts to whatever Claude is up to. It paces when Claude thinks, sprints when your commands run, types when files change, and hurls your pull requests into orbit.
 
-## 安裝
+![Buddy sprinting while a command runs](demo/run.gif)
 
-在 Claude Code 終端機的輸入框打：
+## Install
+
+Type this into the Claude Code prompt:
 
 ```
 /plugin install buddy-go --marketplace magiclin99/buddy-go
 ```
 
-開發時直接從資料夾載入：
+That's it. Buddy shows up above the prompt and starts wandering.
+
+## What Buddy does
+
+### Paces while Claude thinks
+
+![Buddy pacing under a thought bubble](demo/think.gif)
+
+A few steps out, a few steps back, a `. o O` bubble beside its head, and a pause now and then to shut its eyes and really think. Five seconds in, the pacing gets quicker. Fifteen seconds in, Buddy goes red and starts to sweat. When the answer finally lands, both hands go up: `!`
+
+### Sprints while your commands run
+
+![Buddy running with the command on a banner](demo/run.gif)
+
+Every Bash command is a race. The ground rolls in, trees fly past, and Buddy tows your command behind it on a banner. Commands that follow each other are one long run. It ends with a green `Finish!` and a cheer, or a red `Oops!` and a stumble. Run for more than ten seconds and Buddy starts gasping.
+
+### Types along when files change
+
+![Buddy typing beside a file name](demo/edit.gif)
+
+Whenever Claude edits or writes a file, Buddy stops and hammers out a few lines of code, with the file's name underneath.
+
+### Launches your PR
+
+![Buddy charging a ball and throwing it](demo/send-pr.gif)
+
+`gh pr create` deserves a ceremony. Buddy raises its hands, charges up a ball with your PR inside, and throws it clean off the screen.
+
+### Waves when it's your turn
+
+![Buddy waving beside a "your turn" bubble](demo/your-turn.gif)
+
+When Claude ends on a question, Buddy vanishes, pops up at the left edge, and waves until you answer. No more staring at a prompt that was waiting for you.
+
+### Wanders the rest of the time
+
+![Buddy walking above the prompt](demo/walk.gif)
+
+Back and forth, above the prompt, minding its own business.
+
+## Cheat codes
+
+You don't have to wait for Claude. Type a cheat straight into the prompt, with no slash, and Buddy performs on demand. Buddy catches cheats before they are sent, so they never reach the model.
+
+| Type this | Buddy will |
+|---|---|
+| `buddy:think 20` | pace and think for 20 seconds (8 if you leave the number out) |
+| `buddy:run npm test` | sprint for six seconds with `npm test` on the banner |
+| `buddy:edit main.ts` | type into `main.ts` |
+| `buddy:send-pr` | launch a PR |
+| `buddy:your-turn` | wave at you |
+
+## Update
+
+```bash
+claude plugin marketplace update buddy-go
+claude plugin update buddy-go@buddy-go
+```
+
+Then type `/reload-plugins` in any session that is already open.
+
+## Teach Buddy a new trick
+
+Every animation is one small file, and drawing is plain math: given a frame number and where Buddy stands, return the characters and colors to draw. No timers, no engine calls.
+
+1. Add a file to `hooks/animations/` that exports an `Animation`: a name, a priority, how many frames, how long each lasts, and a `draw` function. Export a trigger function and a cheat name if it needs them.
+2. Add it to `ANIMATIONS` in `hooks/animations/index.ts`, and its trigger to `registerTriggers`.
+
+Run it from your folder while you work:
 
 ```bash
 claude --plugin-dir /path/to/buddy-go
+claude plugin validate .
+claude plugin test .
 ```
 
-## 動畫
-
-### 走路
-
-![走路](demo/walk.gif)
-
-沒有其他動畫時。
-
-### your turn
-
-![your turn](demo/your-turn.gif)
-
-AI 的回覆結尾在問你問題，或用提問工具問你時。buddy 原地消失、閃現在最左邊、揮手。
-
-祕技：`buddy:your-turn`
-
-### 思考
-
-![思考](demo/think.gif)
-
-AI 在想的時候（模型串流出 thinking 的那段）。buddy 不再橫越整條，改在原地附近來回踱步：走幾步、停下來單手托頭閉眼想一下、轉身走回來，頭旁冒著 `. o O` 的泡泡。想超過 5 秒腳步變快，超過 15 秒臉變紅、冒汗。想完（開始回話或呼叫工具）的瞬間他停住、雙手舉高、閃一下，泡泡換成 `!`；想不到 2 秒就結束的不演這段。之後從踱到的位置繼續走。
-
-祕技：`buddy:think 秒數`（預設 8 秒）
-
-### 打字
-
-![打字](demo/edit.gif)
-
-編輯檔案時（`Edit`、`Write`、`NotebookEdit`）。buddy 停在原地打字，旁邊一行一行長出程式碼，底下標著檔名。
-
-祕技：`buddy:edit 檔名`
-
-### 跑步
-
-![跑步](demo/run.gif)
-
-執行指令時（`Bash`）。地面先出現，buddy 閃現到正中間、做起跑動作後開跑；他固定在中間不動，動的是往左捲的地面和樹。指令寫在他身後拖著的布條上。跑超過 10 秒會冒汗。連續的指令算同一場：每個指令結束後他會再跑 3 秒、頭旁閃一下綠色的 `Finish!` 或紅色的 `Oops!`，這段時間內有新指令就接著跑、布條換字；沒有才停下來歡呼或絆倒，之後從中間繼續走。
-
-祕技：`buddy:run 指令`（跑 6 秒）
-
-### PR 元氣彈
-
-![PR 元氣彈](demo/send-pr.gif)
-
-執行 `gh pr create` 時。buddy 舉手集氣，球長大後丟出去。
-
-祕技：`buddy:send-pr`
-
-### 祕技
-
-祕技直接打在輸入框（前面不加斜線），會被 mod 攔下、不會送給模型。
-
-## 結構
+<details>
+<summary>Where things live</summary>
 
 ```
 hooks/
-├── register.tsx        串接：計時、發布狀態、祕技、繪製
-├── animations/         一個動畫一個檔案，加上登記表 index.ts
+├── register.tsx        wiring: the clock, the published state, cheats, drawing
+├── animations/         one file per animation, plus the registry in index.ts
 │   ├── walk.ts
 │   ├── wait.ts
 │   ├── think.ts
@@ -87,41 +104,36 @@ hooks/
 │   ├── run.ts
 │   └── launch.ts
 └── lib/
-    ├── player.ts       播放器：現在播誰、誰在排隊、buddy 站在哪（純邏輯）
-    ├── body.ts         buddy 的身體部件
-    ├── render.tsx      把動畫輸出的資料轉成畫面元件
-    └── frame.ts        共用型別
+    ├── player.ts       what is playing, what is queued, where Buddy stands
+    ├── body.ts         Buddy's body parts
+    ├── render.tsx      turns an animation's rows into elements
+    └── frame.ts        shared types
 tests/
-├── player.test.ts      播放器規則
-├── animations.test.ts  每個動畫的畫格內容
-└── walk.test.tsx       事件觸發到畫面的整合測試
+├── player.test.ts      the player's rules
+├── animations.test.ts  what each animation draws, frame by frame
+└── walk.test.tsx       events in, pixels out
 demo/
-├── record.sh           把每個動畫錄成 GIF
-├── settings.json       錄影用：只載入這個資料夾的版本
-└── *.gif               README 用的動畫
+├── record.sh           records every animation as a GIF
+├── settings.json       recording only: load this folder's copy alone
+└── *.gif               the GIFs on this page
 ```
 
-### 新增一個動畫
+</details>
 
-1. 在 `hooks/animations/` 新增一個檔案，匯出一個 `Animation`（名稱、優先順序、格數、每格多久、`draw`），需要的話再匯出觸發函式和宣告祕技名稱。
-2. 在 `hooks/animations/index.ts` 的 `ANIMATIONS` 加一行；有觸發函式的話在 `registerTriggers` 加一行。
+<details>
+<summary>Re-recording the GIFs</summary>
 
-`draw` 是純計算：輸入第幾格與 buddy 的位置，輸出要畫的字和顏色，不碰計時器也不碰引擎。
-
-## 開發
+The GIFs are recorded in a real Claude Code session by typing each cheat. You need `vhs` and `ffmpeg` (`brew install vhs ffmpeg`).
 
 ```bash
-claude plugin validate .
-claude plugin test .
+demo/record.sh          # all of them
+demo/record.sh think    # just one
 ```
 
-### 重錄動畫 GIF
+To record a new animation, add a line at the bottom of `demo/record.sh`: `record <name> "<cheat>" <seconds>`.
 
-上面的 GIF 是在真的 Claude Code session 裡打祕技錄下來的，需要 `vhs` 和 `ffmpeg`（`brew install vhs ffmpeg`）：
+</details>
 
-```bash
-demo/record.sh          # 全部重錄
-demo/record.sh think    # 只錄一支
-```
+---
 
-要多錄一支動畫，在 `demo/record.sh` 最底下加一行 `record 檔名 "祕技" 秒數`。
+buddy-go is an unofficial fan mod and is not affiliated with Anthropic.
