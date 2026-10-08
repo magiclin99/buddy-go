@@ -36,14 +36,22 @@ export type Animation = {
   // How long this play of it is, where that depends on what it was asked to play; without it, `frames`.
   framesFor?: (params: Params) => number | null
   frameMs: (frame: number) => number
-  // Where it leaves the mascot when it ends at `frame`; absent means where it stood.
-  exit?: (frame: number) => 'in-place' | IdleFrom
+  // Where it leaves the mascot when it ends at `frame`: where it stood (as when absent), where the walk
+  // starts over from, or that many steps further along the walk.
+  exit?: (frame: number, params: Params) => 'in-place' | IdleFrom | { steps: number }
   cheat?: { name: string; reply: (params: Params) => string; params?: (typed: string) => Params }
   draw: (frame: number, stage: Stage, params: Params) => Row[]
 }
 
 // The events that start and stop an animation: a named function its file exports, since the engine only lets `on` be handed to one.
 export type Triggers = (on: On, director: Director) => void
+
+// A frame number an animation was handed in its params.
+export const frameIn = (params: Params, key: string) => {
+  const frame = Number(params[key] ?? Number.NaN)
+
+  return Number.isFinite(frame) ? frame : undefined
+}
 
 export const BLANK_ROW: Row = { indent: 0, spans: [] }
 

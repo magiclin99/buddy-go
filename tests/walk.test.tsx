@@ -535,3 +535,150 @@ test('the player holds a wave asked for mid-launch until the ball is gone, and d
 
   await ui.unmount()
 })
+
+const THINK_FRAME_MS = 125
+const AHA_AFTER_FRAMES = 16
+const AHA_FRAMES = 8
+const IDEA = '!'
+const stepped = { turnId: 't1', index: 0, answer: 'Done.', toolUses: [], stopReason: 'end_turn', usage: null } as const
+
+test('thinking sets the mascot pacing under a thought, and one long enough ends on an idea', async ($, on) => {
+  const clock = mock.clock(on)
+  // The step beneath holds its answer back until the test lets it go.
+  let answer = () => {}
+  let answered = Promise.resolve()
+  const think = () => {
+    answered = new Promise<void>(resolve => {
+      answer = resolve
+    })
+
+    return $.turn.step({ turnId: 't1', index: 0, model: 'claude', messageCount: 1 })
+  }
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('turn.step', async function* () {
+    yield { kind: 'thinking', index: 0, text: 'hmm' }
+    await answered
+    yield { kind: 'text', index: 1, text: 'Done.' }
+
+    return stepped
+  })
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...band(60), surface: 'terminal' })
+  const has = async (glyphs: string) =>
+    (await ui.find({ type: 'Text', text: glyphs })) !== undefined
+  // The gap before a thought is a box of its own, ahead of the torso's.
+  const torsoColumn = async (boxesAhead = 0) =>
+    (await ui.findAll({ type: 'Box' }))[TORSO_BOX + boxesAhead]?.props.marginLeft
+
+  expect(await has('.')).toBe(false)
+
+  const step = think()
+  await step.next()
+  expect(await has('.')).toBe(true)
+  expect(await torsoColumn(1)).toBe(0)
+
+  await clock.advance(THINK_FRAME_MS * 6)
+  expect(await has('. o O')).toBe(true)
+  expect(await torsoColumn(1)).toBe(2)
+
+  await clock.advance(THINK_FRAME_MS * (AHA_AFTER_FRAMES - 6))
+  expect(await has(IDEA)).toBe(false)
+
+  answer()
+  await step.next()
+  expect(await has(IDEA)).toBe(true)
+  expect(await has('. o')).toBe(false)
+  expect(await has(TORSO_ARMS_UP)).toBe(true)
+
+  await step.next()
+  await clock.advance(THINK_FRAME_MS * AHA_FRAMES)
+  expect(await has(IDEA)).toBe(false)
+  expect(await has(TORSO)).toBe(true)
+  // It walks on from the five steps it had paced out.
+  expect(await torsoColumn()).toBe(5)
+
+  await ui.unmount()
+})
+
+test('a thought that is over at once, one cut short, and a subagent\'s leave no idea behind', async ($, on) => {
+  const clock = mock.clock(on)
+  // The step beneath holds its answer back until the test lets it go.
+  let answer = () => {}
+  let answered = Promise.resolve()
+  const think = () => {
+    answered = new Promise<void>(resolve => {
+      answer = resolve
+    })
+
+    return $.turn.step({ turnId: 't1', index: 0, model: 'claude', messageCount: 1 })
+  }
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('turn.step', async function* () {
+    yield { kind: 'thinking', index: 0, text: 'hmm' }
+    await answered
+    yield { kind: 'tool', index: 1, id: 'toolu_1', name: 'Read' }
+
+    return stepped
+  })
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...band(60), surface: 'terminal' })
+  const has = async (glyphs: string) =>
+    (await ui.find({ type: 'Text', text: glyphs })) !== undefined
+
+  const quick = think()
+  await quick.next()
+  await clock.advance(THINK_FRAME_MS * 4)
+  expect(await has('.')).toBe(true)
+  answer()
+  await quick.next()
+  expect(await has(IDEA)).toBe(false)
+  expect(await has('.')).toBe(false)
+  expect(await has(TORSO)).toBe(true)
+  await quick.next()
+
+  const cut = think()
+  await cut.next()
+  await clock.advance(THINK_FRAME_MS * (AHA_AFTER_FRAMES + 4))
+  expect(await has('.')).toBe(true)
+  await cut.return(stepped)
+  expect(await has(IDEA)).toBe(false)
+  expect(await has('.')).toBe(false)
+
+  const unseen = $.turn.step({ turnId: 't1', index: 0, model: 'claude', messageCount: 1, agentId: 'sub-1' })
+  expect((await unseen.next()).value).toMatchObject({ kind: 'thinking' })
+  expect(await has('.')).toBe(false)
+  await unseen.return(stepped)
+
+  await ui.unmount()
+})
+
+test('an edit cuts into a thought, and the thought does not come back once it is over', async ($, on) => {
+  const clock = mock.clock(on)
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('tool.call', () => ({ result: {}, text: '' }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...band(60), surface: 'terminal' })
+  const has = async (glyphs: string) =>
+    (await ui.find({ type: 'Text', text: glyphs })) !== undefined
+
+  const answer = await $.prompt.submit({ text: 'buddy:think 2', wait: false, origin: { kind: 'composer' } })
+  expect(answer.drop).toBe('Clawd: thinking.')
+  expect(await has('.')).toBe(true)
+
+  await clock.advance(THINK_FRAME_MS * AHA_AFTER_FRAMES)
+  expect(await has(IDEA)).toBe(true)
+
+  await $.tool.call({ tool: 'Edit', file_path: '/repo/hooks/walk.ts', old_string: 'a', new_string: 'b' })
+  expect(await has(IDEA)).toBe(false)
+  expect(await has('✎ walk.ts')).toBe(true)
+
+  await clock.advance(EDIT_FRAME_MS * EDIT_FRAMES)
+  expect(await has('✎ walk.ts')).toBe(false)
+  expect(await has(IDEA)).toBe(false)
+  expect(await has(TORSO)).toBe(true)
+
+  await ui.unmount()
+})

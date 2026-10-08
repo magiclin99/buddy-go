@@ -4,6 +4,7 @@ import { ANIMATIONS, byCheat, byName } from '../hooks/animations'
 import { edit } from '../hooks/animations/edit'
 import { launch } from '../hooks/animations/launch'
 import { run } from '../hooks/animations/run'
+import { think } from '../hooks/animations/think'
 import { wait } from '../hooks/animations/wait'
 import { stageAt, walk } from '../hooks/animations/walk'
 import { width } from '../hooks/lib/frame'
@@ -35,6 +36,12 @@ describe('the registry', () => {
     expect(byCheat('buddy:run npm test')?.params).toEqual({ command: 'npm test', ok: 'true', ended: '71', until: '71' })
     expect(byCheat('buddy:run npm test')?.reply).toBe('Clawd: running npm test.')
     expect(byCheat('buddy:run')?.params).toEqual({ ok: 'true', ended: '71', until: '71' })
+    expect(byCheat('buddy:think')?.animation).toBe(think)
+    expect(byCheat('buddy:think')?.params).toEqual({ until: '64' })
+    expect(byCheat('buddy:think')?.reply).toBe('Clawd: thinking.')
+    expect(byCheat('buddy:think 20')?.params).toEqual({ until: '160' })
+    expect(byCheat('buddy:think 999')?.params).toEqual({ until: '480' })
+    expect(byCheat('buddy:think soon')?.params).toEqual({ until: '64' })
     expect(byCheat('buddy:nope')).toBeUndefined()
     expect(byCheat('send-pr')).toBeUndefined()
     expect(byCheat('please run buddy:send-pr')).toBeUndefined()
@@ -413,9 +420,9 @@ describe('run', () => {
   })
 
   test('leaves the mascot in the middle once it has reappeared there, and where it was before that', async () => {
-    expect(run.exit?.(6)).toBe('in-place')
-    expect(run.exit?.(7)).toBe('center')
-    expect(run.exit?.(500)).toBe('center')
+    expect(run.exit?.(6, {})).toBe('in-place')
+    expect(run.exit?.(7, {})).toBe('center')
+    expect(run.exit?.(500, {})).toBe('center')
   })
 })
 
@@ -520,9 +527,111 @@ describe('wait', () => {
 
 describe('wait, when it ends', () => {
   test('leaves the mascot where it stood until it has reappeared at the left edge', async () => {
-    expect(wait.exit?.(0)).toBe('in-place')
-    expect(wait.exit?.(4)).toBe('in-place')
-    expect(wait.exit?.(5)).toBe('left-edge')
-    expect(wait.exit?.(30)).toBe('left-edge')
+    expect(wait.exit?.(0, {})).toBe('in-place')
+    expect(wait.exit?.(4, {})).toBe('in-place')
+    expect(wait.exit?.(5, {})).toBe('left-edge')
+    expect(wait.exit?.(30, {})).toBe('left-edge')
+  })
+})
+
+describe('think', () => {
+  const stage = stageAt(10, 60)
+  const draw = (frame: number, params: Record<string, string> = {}) => think.draw(frame, stage, params)
+  const torsoAt = (frame: number, params?: Record<string, string>) => draw(frame, params)[1]?.indent
+  const thought = (frame: number, from = stage) =>
+    think.draw(frame, from, {})[0]?.spans.find(span => span.color === 'inactive')?.text
+
+  test('is as tall as the walk, a thought growing beside the head', async () => {
+    expect(draw(0)).toHaveLength(3)
+    expect(text(draw(0)[0])).toBe('▐█▟███▟.')
+    expect(width(draw(0)[0]?.spans ?? [])).toBe(11)
+    expect([0, 3, 6, 9, 12].map(frame => thought(frame))).toEqual(['.', '. o', '. o O', '. o O', '.'])
+  })
+
+  test('paces a few steps out, stops to ponder with a hand up and its eyes shut, then looks back', async () => {
+    expect([0, 3, 17, 18].map(frame => torsoAt(frame))).toEqual([10, 11, 15, 16])
+    expect(text(draw(17)[1])).toBe('▝▜██████▀')
+    expect(text(draw(18)[1])).toBe('▝▜██████▘')
+    expect(text(draw(18)[0])).toContain('▂███▂█')
+    expect(text(draw(18)[2])).toBe('▝▝   ▝▝')
+    expect(text(draw(24)[0])).toContain('▟███▟█')
+  })
+
+  test('comes back the way it went, glancing out of the band on the way', async () => {
+    expect([27, 30, 42, 44].map(frame => torsoAt(frame))).toEqual([16, 15, 11, 10])
+    expect(text(draw(30)[0])).toContain('▟███▟█')
+    expect(text(draw(9)[0])).toContain('▛███▛█')
+  })
+
+  test('steps every third frame for five seconds, then every other one', async () => {
+    expect(think.frameMs(0) * 40).toBe(5000)
+    expect([33, 36, 39, 40, 42, 44].map(frame => torsoAt(frame))).toEqual([14, 13, 12, 12, 11, 10])
+  })
+
+  test('flushes and sweats once it has thought fifteen seconds, the drop on the side the thought is not', async () => {
+    const calm = draw(118)
+    const worried = [120, 122].map(frame => draw(frame))
+
+    expect(think.frameMs(0) * 120).toBe(15000)
+    expect(calm[1]?.spans[0]?.color).toBe('#d77757')
+    expect(lines(calm).join('').includes('˙')).toBe(false)
+    expect(worried[0]?.[1]?.spans[0]?.color).toBe('#e5533d')
+    expect(worried[0]?.[0]).toMatchObject({ indent: 8 })
+    expect(text(worried[0]?.[0])).toContain('˙')
+    expect(text(worried[1]?.[1])).toContain("'")
+    expect(worried[1]?.[1]?.indent).toBe(8)
+  })
+
+  test('puts the thought on the left when the right has no room, and drops it when neither side has', async () => {
+    const atTheRight = stageAt(48, 60)
+
+    expect(think.draw(0, atTheRight, {})[0]).toMatchObject({ indent: 45 })
+    expect(thought(6, atTheRight)).toBe('O o .')
+    // Two steps on by then, and the thought with it.
+    expect(think.draw(6, atTheRight, {})[0]?.indent).toBe(43)
+    expect(thought(6, stageAt(0, 12))).toBeUndefined()
+  })
+
+  test('never draws past either edge, however long it thinks', async () => {
+    for (const columns of [9, 12, 24, 80]) {
+      for (const step of [0, 7, 60]) {
+        for (let frame = 0; frame < 200; frame += 1) {
+          for (const row of think.draw(frame, stageAt(step, columns), {})) {
+            expect(row.indent >= 0).toBe(true)
+            expect(row.indent + width(row.spans) <= columns).toBe(true)
+          }
+        }
+      }
+    }
+  })
+})
+
+describe('think, once the thought is over', () => {
+  const stage = stageAt(10, 60)
+  const over = { until: '64' }
+
+  test('loops while the model thinks, and has an end once it is told when the thought stopped', async () => {
+    expect(think.framesFor?.({})).toBe(null)
+    expect(think.framesFor?.(over)).toBe(72)
+  })
+
+  test('stops where it had paced to, hands up, an idea where the thought was', async () => {
+    const idea = think.draw(64, stage, over)
+
+    expect(text(idea[0])).toBe('▗▟▛███▛█▄!')
+    expect(idea[0]?.spans.at(-1)).toMatchObject({ text: '!', color: 'warning', bold: true })
+    expect(text(idea[1])).toBe('▜██████▘')
+    expect([64, 67, 71].map(frame => think.draw(frame, stage, over)[1]?.indent)).toEqual([17, 17, 17])
+  })
+
+  test('flashes as the idea lands', async () => {
+    expect(think.draw(65, stage, over)[1]?.spans[0]?.color).toBe('text')
+    expect(think.draw(66, stage, over)[1]?.spans[0]?.color).toBe('#d77757')
+  })
+
+  test('leaves the mascot as many steps on as it had paced out', async () => {
+    expect(think.exit?.(30, {})).toEqual({ steps: 5 })
+    expect(think.exit?.(44, {})).toEqual({ steps: 0 })
+    expect(think.exit?.(72, over)).toEqual({ steps: 6 })
   })
 })

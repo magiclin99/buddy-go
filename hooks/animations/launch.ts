@@ -43,7 +43,7 @@ export const opensPr = (command: string) => PR_CREATE.test(command)
 
 export const launch: Animation = {
   name: 'launch',
-  priority: 2,
+  priority: 3,
   frames: CHARGE_FRAMES + WIND_UP_FRAMES + FLIGHT_FRAMES,
   frameMs: () => FRAME_MS,
   cheat: { name: 'send-pr', reply: () => 'Clawd: PR launched.' },

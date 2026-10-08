@@ -28,12 +28,20 @@ export const createPlayer = (idle: Animation, find: (name: string) => Animation 
   }
 
   const leave = () => {
-    const left = act?.animation.exit?.(frame) ?? 'in-place'
+    const left = act?.animation.exit?.(frame, act.params) ?? 'in-place'
 
-    if (left !== 'in-place') {
-      idleFrame = 0
-      idleFrom = left
+    if (left === 'in-place') {
+      return
     }
+
+    if (typeof left === 'object') {
+      idleFrame += left.steps
+
+      return
+    }
+
+    idleFrame = 0
+    idleFrom = left
   }
 
   const enqueue = (next: Act) => {

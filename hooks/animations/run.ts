@@ -1,5 +1,5 @@
-import { ARMS, FEET, GHOSTS, SPRITE_COLUMNS, ghost, mascot } from '../lib/body'
-import { layRow } from '../lib/frame'
+import { ARMS, FEET, GHOSTS, SPRITE_COLUMNS, SWEAT, SWEAT_COLOR, ghost, mascot } from '../lib/body'
+import { frameIn, layRow } from '../lib/frame'
 import type { Animation, Params, Piece, Row, Span, Stage, Triggers } from '../lib/frame'
 import { opensPr } from './launch'
 import { middle } from './walk'
@@ -48,7 +48,6 @@ const BANNER_TRIM_COLUMNS = 3
 const SHORTEST_BANNER = 4
 const UNFURL_FRAMES = 6
 const FLUTTER_FRAMES = 2
-const SWEAT_COLOR = '#9be7ff'
 const MARK_GAP = 2
 const PASSED: Span = { text: 'Finish!', color: 'success', bold: true }
 const FAILED: Span = { text: 'Oops!', color: 'error', bold: true }
@@ -73,11 +72,6 @@ const THINGS: readonly Thing[] = [
 ]
 const THING_SLOT = 14
 const WIDEST_THING = 5
-
-const SWEAT = [
-  { row: 0, glyph: '˙' },
-  { row: 1, glyph: "'" },
-] as const
 
 // Kicked up behind the feet as it sets off, by frames run.
 const DUST = [
@@ -350,12 +344,6 @@ const finisher = (frame: number, hasPassed: boolean, { columns }: Stage): Actor 
   }
 }
 
-const frameIn = (params: Params, key: string) => {
-  const frame = Number(params[key] ?? Number.NaN)
-
-  return Number.isFinite(frame) ? frame : undefined
-}
-
 // Before it has reappeared the mascot never left; after, the middle is where it is.
 const leftAt = (frame: number) => (frame < REAPPEAR_FRAME ? 'in-place' : 'center')
 
@@ -365,7 +353,7 @@ const leftAt = (frame: number) => (frame < REAPPEAR_FRAME ? 'in-place' : 'center
 //   ok       how the last command went      ended  the frame that one came back at
 export const run: Animation = {
   name: 'run',
-  priority: 1,
+  priority: 2,
   frames: null,
   framesFor: params => {
     const until = frameIn(params, 'until')

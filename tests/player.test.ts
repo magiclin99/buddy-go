@@ -191,6 +191,19 @@ describe('the player', () => {
     expect(player.show().idleFrom).toBe('center')
   })
 
+  test('carries the walk on from where the animation says it took the mascot', async () => {
+    const stroll = make('stroll', 1, null, {
+      exit: (frame, params) => ({ steps: frame + Number(params.more ?? 0) }),
+    })
+    const player = createPlayer(idle, () => undefined)
+
+    ticks(player, 7)
+    player.play(stroll, { more: '10' })
+    ticks(player, 3)
+    player.stop(stroll)
+    expect(player.show()).toEqual({ name: 'idle', frame: 20, params: {}, idleFrame: 20, idleFrom: 'left-edge' })
+  })
+
   test('picks a show back up after a reload, and falls back to idle for one it does not know', async () => {
     const player = fresh()
 

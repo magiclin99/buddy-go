@@ -53,7 +53,7 @@ const page = (frame: number, file: string | undefined): Span[][] => {
 
 export const edit: Animation = {
   name: 'edit',
-  priority: 1,
+  priority: 2,
   frames: TYPING_FRAMES + REST_FRAMES,
   frameMs: () => FRAME_MS,
   cheat: {
