@@ -29,6 +29,7 @@ claude --plugin-dir /path/to/buddy-go
 | 走路 | 沒有其他動畫時 | — |
 | your turn | AI 的回覆結尾在問你問題，或用提問工具問你時。buddy 原地消失、閃現在最左邊、揮手 | `buddy:your-turn` |
 | 打字 | 編輯檔案時（`Edit`、`Write`、`NotebookEdit`）。buddy 停在原地打字，旁邊一行一行長出程式碼，底下標著檔名 | `buddy:edit 檔名` |
+| 跑步 | 執行指令時（`Bash`）。地面先出現，buddy 閃現到正中間、做起跑動作後開跑；他固定在中間不動，動的是往左捲的地面和樹。指令寫在他身後拖著的布條上。跑超過 10 秒會冒汗。連續的指令算同一場：每個指令結束後他會再跑 3 秒、頭旁閃一下綠色的 `Finish!` 或紅色的 `Oops!`，這段時間內有新指令就接著跑、布條換字；沒有才停下來歡呼或絆倒，之後從中間繼續走 | `buddy:run 指令`（跑 6 秒） |
 | PR 元氣彈 | 執行 `gh pr create` 時。buddy 舉手集氣，球長大後丟出去 | `buddy:send-pr` |
 
 祕技直接打在輸入框（前面不加斜線），會被 mod 攔下、不會送給模型。
@@ -42,6 +43,7 @@ hooks/
 │   ├── walk.ts
 │   ├── wait.ts
 │   ├── edit.ts
+│   ├── run.ts
 │   └── launch.ts
 └── lib/
     ├── player.ts       播放器：現在播誰、誰在排隊、buddy 站在哪（純邏輯）

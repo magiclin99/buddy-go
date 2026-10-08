@@ -19,6 +19,10 @@ const textProps = (span: Span) => {
     props.dimColor = true
   }
 
+  if (span.bold) {
+    props.bold = true
+  }
+
   return props
 }
 

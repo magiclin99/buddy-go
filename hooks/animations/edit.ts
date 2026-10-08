@@ -1,5 +1,6 @@
 import { ARMS, FEET, SPRITE_COLUMNS, mascot } from '../lib/body'
 import type { Gaze } from '../lib/body'
+import { width, withGap } from '../lib/frame'
 import type { Animation, Params, Row, Span, Triggers } from '../lib/frame'
 
 const FRAME_MS = 120
@@ -49,11 +50,6 @@ const page = (frame: number, file: string | undefined): Span[][] => {
     fileLabel(file),
   ]
 }
-
-const width = (spans: readonly Span[]) => spans.reduce((sum, span) => sum + (span.gap ?? 0) + span.text.length, 0)
-
-const withGap = (spans: readonly Span[], gap: number): Span[] =>
-  spans.map((span, index) => (index === 0 ? { ...span, gap: (span.gap ?? 0) + gap } : span))
 
 export const edit: Animation = {
   name: 'edit',

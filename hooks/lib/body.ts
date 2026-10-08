@@ -68,3 +68,25 @@ export const mascot = (
     { indent: at + feet.indent, spans: [{ text: feet.glyphs, color: tint }] },
   ]
 }
+
+// Densest first: played forward the mascot fades out, backward it fades in.
+export const GHOSTS = [
+  [
+    { indent: 1, glyphs: '▒▒▒▒▒▒▒' },
+    { indent: 0, glyphs: '▒▒▒▒▒▒▒▒▒' },
+    { indent: 1, glyphs: '▒▒   ▒▒' },
+  ],
+  [
+    { indent: 1, glyphs: '░ ░░ ░░' },
+    { indent: 0, glyphs: '░░ ░░░ ░░' },
+    { indent: 1, glyphs: '░░   ░░' },
+  ],
+  [
+    { indent: 2, glyphs: '·   ·' },
+    { indent: 4, glyphs: '·' },
+    { indent: 2, glyphs: '·   ·' },
+  ],
+] as const
+
+export const ghost = (at: number, rows: (typeof GHOSTS)[number]): Row[] =>
+  rows.map(row => ({ indent: at + row.indent, spans: [{ text: row.glyphs, color: BODY, dimColor: true }] }))

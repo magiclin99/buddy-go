@@ -3,6 +3,7 @@ import type { EngineInterface, Register, Timer } from 'claude-code'
 
 import { IDLE, byCheat, byName, registerTriggers } from './animations'
 import { stageAt } from './animations/walk'
+import { BLANK_ROW } from './lib/frame'
 import type { Director } from './lib/frame'
 import { createPlayer } from './lib/player'
 import { renderRows } from './lib/render'
@@ -47,6 +48,7 @@ const director: Director = {
     player.stop(animation)
     wake?.()
   },
+  frameOf: animation => player.frameOf(animation),
 }
 
 export const register: Register = on => {
@@ -94,9 +96,10 @@ export const register: Register = on => {
     const shown = (await read($, show)) ?? player.show()
     const animation = byName(shown.name) ?? IDLE
 
-    return renderRows(
-      $.ui.resolve(e),
-      animation.draw(shown.frame, stageAt(shown.idleFrame, e.props.bodyColumns), shown.params),
-    )
+    // A row of air over the mascot's head, whatever it is doing.
+    return renderRows($.ui.resolve(e), [
+      BLANK_ROW,
+      ...animation.draw(shown.frame, stageAt(shown.idleFrame, e.props.bodyColumns, shown.idleFrom), shown.params),
+    ])
   })
 }

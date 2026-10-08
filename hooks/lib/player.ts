@@ -1,6 +1,12 @@
-import type { Animation, Params } from './frame'
+import type { Animation, IdleFrom, Params } from './frame'
 
-export type Show = { name: string; frame: number; params: Record<string, string>; idleFrame: number }
+export type Show = {
+  name: string
+  frame: number
+  params: Record<string, string>
+  idleFrame: number
+  idleFrom?: IdleFrom
+}
 
 type Act = { animation: Animation; params: Params }
 
@@ -10,7 +16,11 @@ export const createPlayer = (idle: Animation, find: (name: string) => Animation 
   let act: Act | undefined
   let frame = 0
   let idleFrame = 0
+  let idleFrom: IdleFrom = 'left-edge'
   let waiting: Act[] = []
+
+  const framesOf = (held: Act) =>
+    held.animation.framesFor === undefined ? held.animation.frames : held.animation.framesFor(held.params)
 
   const begin = (next: Act) => {
     act = next
@@ -18,8 +28,11 @@ export const createPlayer = (idle: Animation, find: (name: string) => Animation 
   }
 
   const leave = () => {
-    if (act?.animation.exit?.(frame) === 'left-edge') {
+    const left = act?.animation.exit?.(frame) ?? 'in-place'
+
+    if (left !== 'in-place') {
       idleFrame = 0
+      idleFrom = left
     }
   }
 
@@ -69,7 +82,7 @@ export const createPlayer = (idle: Animation, find: (name: string) => Animation 
         return
       }
 
-      if (act.animation.frames === null) {
+      if (framesOf(act) === null) {
         enqueue(act)
       }
 
@@ -85,6 +98,8 @@ export const createPlayer = (idle: Animation, find: (name: string) => Animation 
       }
     },
 
+    frameOf: (animation: Animation) => (act?.animation.name === animation.name ? frame : undefined),
+
     tick: () => {
       if (act === undefined) {
         idleFrame += 1
@@ -94,7 +109,9 @@ export const createPlayer = (idle: Animation, find: (name: string) => Animation 
 
       frame += 1
 
-      if (act.animation.frames !== null && frame >= act.animation.frames) {
+      const frames = framesOf(act)
+
+      if (frames !== null && frame >= frames) {
         finish()
       }
     },
@@ -103,13 +120,14 @@ export const createPlayer = (idle: Animation, find: (name: string) => Animation 
 
     show: (): Show =>
       act === undefined
-        ? { name: idle.name, frame: idleFrame, params: {}, idleFrame }
-        : { name: act.animation.name, frame, params: { ...act.params }, idleFrame },
+        ? { name: idle.name, frame: idleFrame, params: {}, idleFrame, idleFrom }
+        : { name: act.animation.name, frame, params: { ...act.params }, idleFrame, idleFrom },
 
     // Picks up a show a reload left in state; what was waiting behind it is gone.
     restore: (kept: Show) => {
       const animation = find(kept.name)
       idleFrame = kept.idleFrame
+      idleFrom = kept.idleFrom ?? 'left-edge'
       waiting = []
       act = animation === undefined || animation.name === idle.name ? undefined : { animation, params: kept.params }
       frame = act === undefined ? 0 : kept.frame
