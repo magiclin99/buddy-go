@@ -20,6 +20,7 @@ export const ARMS = {
   down: { topIndent: 1, topLeft: '▐', topRight: '', torsoIndent: 0, torso: '▝▜██████▀' },
   up: { topIndent: 0, topLeft: '▗▟', topRight: '▄', torsoIndent: 1, torso: '▜██████▘' },
   oneUp: { topIndent: 1, topLeft: '▐', topRight: '▄', torsoIndent: 0, torso: '▝▜██████▘' },
+  otherUp: { topIndent: 0, topLeft: '▗▟', topRight: '', torsoIndent: 1, torso: '▜██████▀' },
 } as const
 
 export const FEET = {

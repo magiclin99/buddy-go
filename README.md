@@ -28,6 +28,7 @@ claude --plugin-dir /path/to/buddy-go
 |---|---|---|
 | 走路 | 沒有其他動畫時 | — |
 | your turn | AI 的回覆結尾在問你問題，或用提問工具問你時。buddy 原地消失、閃現在最左邊、揮手 | `buddy:your-turn` |
+| 打字 | 編輯檔案時（`Edit`、`Write`、`NotebookEdit`）。buddy 停在原地打字，旁邊一行一行長出程式碼，底下標著檔名 | `buddy:edit 檔名` |
 | PR 元氣彈 | 執行 `gh pr create` 時。buddy 舉手集氣，球長大後丟出去 | `buddy:send-pr` |
 
 祕技直接打在輸入框（前面不加斜線），會被 mod 攔下、不會送給模型。
@@ -40,6 +41,7 @@ hooks/
 ├── animations/         一個動畫一個檔案，加上登記表 index.ts
 │   ├── walk.ts
 │   ├── wait.ts
+│   ├── edit.ts
 │   └── launch.ts
 └── lib/
     ├── player.ts       播放器：現在播誰、誰在排隊、buddy 站在哪（純邏輯）

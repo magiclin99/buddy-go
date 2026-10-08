@@ -198,6 +198,58 @@ test('running gh pr create launches the banner', async ($, on) => {
   await ui.unmount()
 })
 
+const EDIT_FRAME_MS = 120
+const EDIT_FRAMES = 20
+
+test('editing a file sets the mascot typing beside its name, then it walks on', async ($, on) => {
+  const clock = mock.clock(on)
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('tool.call', () => ({ result: {}, text: '' }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...band(60), surface: 'terminal' })
+  const has = async (glyphs: string) =>
+    (await ui.find({ type: 'Text', text: glyphs })) !== undefined
+
+  await $.tool.call({ tool: 'Read', file_path: '/repo/hooks/walk.ts' })
+  expect(await has('✎ walk.ts')).toBe(false)
+
+  await $.tool.call({ tool: 'Edit', file_path: '/repo/hooks/walk.ts', old_string: 'a', new_string: 'b' })
+  expect(await has('✎ walk.ts')).toBe(true)
+  expect(await has(LOOKING_RIGHT)).toBe(true)
+
+  // A second edit while it types only changes the name; the animation still ends on time.
+  await clock.advance(EDIT_FRAME_MS * (EDIT_FRAMES / 2))
+  await $.tool.call({ tool: 'Write', file_path: '/repo/README.md', content: 'hi' })
+  expect(await has('✎ walk.ts')).toBe(false)
+  expect(await has('✎ README.md')).toBe(true)
+
+  await clock.advance(EDIT_FRAME_MS * (EDIT_FRAMES / 2))
+  expect(await has('✎ README.md')).toBe(false)
+  expect(await has(TORSO)).toBe(true)
+
+  await ui.unmount()
+})
+
+test('the edit cheat types the name it was given', async ($, on) => {
+  const clock = mock.clock(on)
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...band(60), surface: 'terminal' })
+  const has = async (glyphs: string) =>
+    (await ui.find({ type: 'Text', text: glyphs })) !== undefined
+
+  const answer = await $.prompt.submit({ text: 'buddy:edit launch.ts', wait: false, origin: { kind: 'composer' } })
+  expect(answer.drop).toBe('Clawd: editing launch.ts.')
+  expect(await has('✎ launch.ts')).toBe(true)
+
+  await clock.advance(EDIT_FRAME_MS * EDIT_FRAMES)
+  expect(await has('✎ launch.ts')).toBe(false)
+
+  await ui.unmount()
+})
+
 const TELEPORT_FRAME_MS = 150
 const TELEPORT_FRAMES = 8
 const BUBBLE = '< your turn'

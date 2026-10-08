@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'claude-code/testing'
 
 import { ANIMATIONS, byCheat, byName } from '../hooks/animations'
+import { edit } from '../hooks/animations/edit'
 import { launch } from '../hooks/animations/launch'
 import { wait } from '../hooks/animations/wait'
 import { stageAt, walk } from '../hooks/animations/walk'
@@ -24,6 +25,10 @@ describe('the registry', () => {
     expect(byCheat('buddy:send-pr')?.animation).toBe(launch)
     expect(byCheat('  buddy:your-turn  ')?.animation).toBe(wait)
     expect(byCheat('buddy:your-turn')?.reply).toBe('Clawd: your turn.')
+    expect(byCheat('buddy:edit launch.ts')?.animation).toBe(edit)
+    expect(byCheat('buddy:edit launch.ts')?.params).toEqual({ file: 'launch.ts' })
+    expect(byCheat('buddy:edit launch.ts')?.reply).toBe('Clawd: editing launch.ts.')
+    expect(byCheat('buddy:edit')?.params).toEqual({})
     expect(byCheat('buddy:nope')).toBeUndefined()
     expect(byCheat('send-pr')).toBeUndefined()
     expect(byCheat('please run buddy:send-pr')).toBeUndefined()
@@ -106,6 +111,59 @@ describe('launch', () => {
     expect(right[6]).toContain('█▟███▟')
     expect(left[2]).toContain('│    PR    │━━━')
     expect(left[6]).toContain('▟███▟█')
+  })
+})
+
+describe('edit', () => {
+  const stage = stageAt(0, 60)
+  const lastFrame = (edit.frames ?? 0) - 1
+  const file = '/repo/hooks/launch.ts'
+
+  test('stays as tall as the walk and types a line beside the hands', async () => {
+    for (let frame = 0; frame <= lastFrame; frame += 1) {
+      expect(edit.draw(frame, stage, { file })).toHaveLength(3)
+    }
+
+    expect(text(edit.draw(0, stage, { file })[1])).toBe('▝▜██████▘▌')
+    expect(text(edit.draw(1, stage, { file })[1])).toBe('▜██████▀▬▬▌')
+    expect(text(edit.draw(7, stage, { file })[1])).toContain('▬▬▬ ▬▬▬▬▬ ▬▬ ▬▬▬▬▌')
+    expect(edit.draw(7, stage, { file })[1]?.spans[1]).toEqual({ text: '▬▬▬ ▬▬▬▬▬ ▬▬ ▬▬▬▬', color: 'success', gap: 3 })
+  })
+
+  test('scrolls the finished line up, dimmed, and starts the next', async () => {
+    const rows = edit.draw(8, stage, { file })
+
+    expect(rows[0]?.spans.at(-1)).toEqual({ text: '▬▬▬ ▬▬▬▬▬ ▬▬ ▬▬▬▬', color: 'success', dimColor: true, gap: 3 })
+    expect(text(rows[1])).toBe('▝▜██████▘▌')
+    expect(text(edit.draw(15, stage, { file })[1])).toContain('▬▬ ▬▬▬ ▬▬▬▬▬▬ ▬▌')
+  })
+
+  test('names the file without its path, cut to fit', async () => {
+    const longName = 'tests/a-very-long-file-name.test.tsx'
+
+    expect(text(edit.draw(0, stage, { file })[2])).toBe('▝▝   ▝▝✎ launch.ts')
+    expect(text(edit.draw(0, stage, { file: longName })[2])).toBe('▝▝   ▝▝✎ a-very-long-fil…')
+    expect(text(edit.draw(0, stage, {})[2])).toBe('▝▝   ▝▝')
+  })
+
+  test('puts the page on the left when the right has no room, and drops it when neither side has', async () => {
+    const left = edit.draw(4, stageAt(45, 60), { file })
+
+    expect(left[1]?.indent).toBe(24)
+    expect(text(left[0])).toContain('▟███▟█')
+    expect(text(left[1])).toBe('▬▬▬ ▬▬▬▬▬ ▌▝▜██████▘')
+    expect(text(left[2])).toBe('✎ launch.ts▝▝   ▝▝')
+
+    const alone = lines(edit.draw(4, stageAt(3, 20), { file }))
+
+    expect(alone).toEqual(['▐▛███▛█▄', '▝▜██████▘', '▝▝   ▝▝'])
+  })
+
+  test('ends with the hands down, looking ahead, the cursor gone', async () => {
+    const rows = lines(edit.draw(lastFrame, stage, { file }))
+
+    expect(rows[0]).toContain('▛███▛█')
+    expect(rows[1]).toBe('▝▜██████▀▬▬ ▬▬▬ ▬▬▬▬▬▬ ▬')
   })
 })
 
