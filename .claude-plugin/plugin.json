@@ -1,0 +1,7 @@
+{
+  "name": "buddy-go",
+  "version": "0.1.0",
+  "description": "Buddy, the Claude Code mascot, living above the prompt: it walks, waves when it is your turn, and throws your PR into orbit.",
+  "author": { "name": "Gary Lin" },
+  "types": "./types/index.d.ts"
+}
