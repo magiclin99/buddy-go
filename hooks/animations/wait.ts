@@ -24,7 +24,7 @@ const BUBBLE = '< your turn'
 
 export const wait: Animation = {
   name: 'wait',
-  priority: 1,
+  priority: 2,
   frames: null,
   // The teleport is quick; the wave after it only needs the walk's slower beat.
   frameMs: frame => (frame < TELEPORT_FRAMES ? TELEPORT_FRAME_MS : STEP_MS),

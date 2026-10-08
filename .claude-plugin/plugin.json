@@ -1,7 +1,7 @@
 {
   "name": "buddy-go",
-  "version": "0.3.0",
-  "description": "Buddy, the Claude Code mascot, living above the prompt: it walks, waves when it is your turn, types along when a file is edited, runs while a command does, and throws your PR into orbit.",
+  "version": "0.4.0",
+  "description": "Buddy, the Claude Code mascot, living above the prompt: it walks, waves when it is your turn, paces while the model thinks, types along when a file is edited, runs while a command does, and throws your PR into orbit.",
   "author": { "name": "magiclin99" },
   "types": "./types/index.d.ts"
 }

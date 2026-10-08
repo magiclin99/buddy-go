@@ -6,6 +6,14 @@ export const SPRITE_COLUMNS = 9
 const EYES_COLUMNS = 6
 const BUBBLE_COLUMN = 11
 
+export const SWEAT_COLOR = '#9be7ff'
+
+// A drop beside the head that slides down a row as it alternates.
+export const SWEAT = [
+  { row: 0, glyph: '˙' },
+  { row: 1, glyph: "'" },
+] as const
+
 export type Gaze = 'ahead' | 'left' | 'right' | 'closed'
 
 // A lid swaps the two colors, so the eye reads as a thin dark line on the body.
