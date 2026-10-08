@@ -37,12 +37,7 @@ const BALLS = [
 
 const CHARGE_FRAMES = CHARGE_STAGE_FRAMES * BALLS.length
 
-const PR_SKILL = 'gary-pr'
 const PR_CREATE = /\bgh\s+pr\s+create\b/
-const PR_URL = /https:\/\/\S+\/pull\/\d+/
-
-// Set once the PR skill's prompt reaches the model; the skill may take several turns to open the PR.
-let isArmed = false
 
 export const launch: Animation = {
   name: 'launch',
@@ -123,25 +118,11 @@ export const launch: Animation = {
 }
 
 export const launchTriggers: Triggers = (on, director) => {
-  on('skill.prompt', { skill: PR_SKILL }, ($, e, next) => {
-    isArmed = true
-
-    return next(e)
-  })
-
-  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
-    if (!PR_CREATE.test(e.command)) {
-      return next(e)
-    }
-
-    const ran = await next(e)
-    const hasOpened = ran.deny === undefined && ran.isError !== true && PR_URL.test(ran.text ?? '')
-
-    if (hasOpened && isArmed) {
-      isArmed = false
+  on('tool.call', { tool: 'Bash' }, ($, e, next) => {
+    if (PR_CREATE.test(e.command)) {
       director.play(launch)
     }
 
-    return ran
+    return next(e)
   })
 }

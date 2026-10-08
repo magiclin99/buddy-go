@@ -14,7 +14,6 @@ const LOOKING_RIGHT = '█▟███▟'
 const LOOKING_LEFT = '▟███▟█'
 const SPARK = '∘'
 const FULL_BALL = '│    PR    │'
-const PR_OPENED = 'https://github.com/acme/widgets/pull/42'
 
 const band = (bodyColumns: number) =>
   ({
@@ -181,46 +180,20 @@ test('standing in the right half, the mascot throws the ball to the left', async
   await ui.unmount()
 })
 
-test('a PR opened after /gary-pr launches the banner, once', async ($, on) => {
+test('running gh pr create launches the banner', async ($, on) => {
   mock.clock(on)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
-  on('skill.prompt', ($, e) => ({ text: e.text }))
-  on('tool.call', () => ({ result: { stdout: PR_OPENED, stderr: '', interrupted: false }, text: PR_OPENED }))
+  on('tool.call', () => ({ result: { stdout: '', stderr: '', interrupted: false }, text: '' }))
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
   const ui = await $.ui.mount({ ...band(60), surface: 'terminal' })
   const isLaunching = async () => (await ui.find({ type: 'Text', text: TORSO_ARMS_UP })) !== undefined
-  const openPr = () => $.tool.call({ tool: 'Bash', command: 'gh pr create --title "t" --body "b"' })
 
-  await openPr()
-  expect(await isLaunching()).toBe(false)
-
-  await $.skill.prompt({ skill: 'gary-pr', text: 'open the PR' })
   await $.tool.call({ tool: 'Bash', command: 'git push -u origin HEAD' })
   expect(await isLaunching()).toBe(false)
 
-  await openPr()
+  await $.tool.call({ tool: 'Bash', command: 'gh pr create --title "t" --body "b"' })
   expect(await isLaunching()).toBe(true)
-
-  await ui.unmount()
-})
-
-test('a PR that failed to open launches nothing', async ($, on) => {
-  mock.clock(on)
-  on('session.start', ($, e) => ({ cwd: e.cwd }))
-  on('skill.prompt', ($, e) => ({ text: e.text }))
-  on('tool.call', () => ({
-    result: { stdout: '', stderr: 'pull request create failed', interrupted: false },
-    text: 'pull request create failed',
-    isError: true,
-  }))
-  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
-
-  const ui = await $.ui.mount({ ...band(60), surface: 'terminal' })
-
-  await $.skill.prompt({ skill: 'gary-pr', text: 'open the PR' })
-  await $.tool.call({ tool: 'Bash', command: 'gh pr create --fill' })
-  expect(await ui.find({ type: 'Text', text: TORSO_ARMS_UP })).toBeUndefined()
 
   await ui.unmount()
 })

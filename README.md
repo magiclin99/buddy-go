@@ -28,7 +28,7 @@ claude --plugin-dir /path/to/buddy-go
 |---|---|---|
 | 走路 | 沒有其他動畫時 | — |
 | your turn | AI 的回覆結尾在問你問題，或用提問工具問你時。buddy 原地消失、閃現在最左邊、揮手 | `buddy:your-turn` |
-| PR 元氣彈 | `/gary-pr` 啟動後 `gh pr create` 成功時。buddy 舉手集氣，球長大後丟出去 | `buddy:send-pr` |
+| PR 元氣彈 | 執行 `gh pr create` 時。buddy 舉手集氣，球長大後丟出去 | `buddy:send-pr` |
 
 祕技直接打在輸入框（前面不加斜線），會被 mod 攔下、不會送給模型。
 
