@@ -1,6 +1,6 @@
-import { ARMS, BODY, FEET, bubbleFits, mascot } from '../lib/body'
+import { ARMS, FEET, GHOSTS, bubbleFits, ghost, mascot } from '../lib/body'
 import { BLANK_ROW } from '../lib/frame'
-import type { Animation, Row, Triggers } from '../lib/frame'
+import type { Animation, Triggers } from '../lib/frame'
 import { STEP_MS } from './walk'
 
 const CLOSING_LINES = 3
@@ -21,28 +21,6 @@ const APPEAR_FRAMES = 3
 const TELEPORT_FRAMES = VANISH_FRAMES + GAP_FRAMES + APPEAR_FRAMES
 const BLINK_EVERY = 12
 const BUBBLE = '< your turn'
-
-// Densest first: played forward the mascot fades out, backward it fades in.
-const GHOSTS = [
-  [
-    { indent: 1, glyphs: '▒▒▒▒▒▒▒' },
-    { indent: 0, glyphs: '▒▒▒▒▒▒▒▒▒' },
-    { indent: 1, glyphs: '▒▒   ▒▒' },
-  ],
-  [
-    { indent: 1, glyphs: '░ ░░ ░░' },
-    { indent: 0, glyphs: '░░ ░░░ ░░' },
-    { indent: 1, glyphs: '░░   ░░' },
-  ],
-  [
-    { indent: 2, glyphs: '·   ·' },
-    { indent: 4, glyphs: '·' },
-    { indent: 2, glyphs: '·   ·' },
-  ],
-] as const
-
-const ghost = (at: number, rows: (typeof GHOSTS)[number]): Row[] =>
-  rows.map(row => ({ indent: at + row.indent, spans: [{ text: row.glyphs, color: BODY, dimColor: true }] }))
 
 export const wait: Animation = {
   name: 'wait',

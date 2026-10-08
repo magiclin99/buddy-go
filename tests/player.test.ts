@@ -31,7 +31,7 @@ describe('the player', () => {
     const player = fresh()
 
     ticks(player, 4)
-    expect(player.show()).toEqual({ name: 'idle', frame: 4, params: {}, idleFrame: 4 })
+    expect(player.show()).toEqual({ name: 'idle', frame: 4, params: {}, idleFrame: 4, idleFrom: 'left-edge' })
     expect(player.delay()).toBe(300)
   })
 
@@ -40,13 +40,13 @@ describe('the player', () => {
 
     ticks(player, 2)
     player.play(throwing)
-    expect(player.show()).toEqual({ name: 'throwing', frame: 0, params: {}, idleFrame: 2 })
+    expect(player.show()).toEqual({ name: 'throwing', frame: 0, params: {}, idleFrame: 2, idleFrom: 'left-edge' })
     expect(player.delay()).toBe(100)
 
     ticks(player, 2)
     expect(player.show().frame).toBe(2)
     player.tick()
-    expect(player.show()).toEqual({ name: 'idle', frame: 2, params: {}, idleFrame: 2 })
+    expect(player.show()).toEqual({ name: 'idle', frame: 2, params: {}, idleFrame: 2, idleFrom: 'left-edge' })
   })
 
   test('holds a lower priority request until the stage is free', async () => {
@@ -67,7 +67,7 @@ describe('the player', () => {
     ticks(player, 5)
     player.play(throwing)
     ticks(player, 3)
-    expect(player.show()).toEqual({ name: 'wave', frame: 0, params: {}, idleFrame: 0 })
+    expect(player.show()).toEqual({ name: 'wave', frame: 0, params: {}, idleFrame: 0, idleFrom: 'left-edge' })
 
     player.stop(wave)
     player.play(throwing)
@@ -116,13 +116,49 @@ describe('the player', () => {
     expect(player.show().name).toBe('idle')
   })
 
+  test('says which frame the one on stage is on, and nothing for one that is not', async () => {
+    const player = fresh()
+
+    player.play(throwing)
+    player.play(wave)
+    ticks(player, 2)
+    expect(player.frameOf(throwing)).toBe(2)
+    expect(player.frameOf(wave)).toBeUndefined()
+  })
+
+  test('lets what an animation was asked to play say how long it is', async () => {
+    const lap = make('lap', 1, null, { framesFor: params => (params.until === undefined ? null : Number(params.until)) })
+    const player = createPlayer(idle, () => undefined)
+
+    player.play(lap)
+    ticks(player, 50)
+    expect(player.show().name).toBe('lap')
+
+    player.play(lap, { until: '53' })
+    ticks(player, 2)
+    expect(player.show().name).toBe('lap')
+    player.tick()
+    expect(player.show().name).toBe('idle')
+
+    // Looping, it comes back after something cut in; told when to stop, it does not.
+    player.play(lap)
+    player.play(throwing)
+    ticks(player, 3)
+    expect(player.show().name).toBe('lap')
+
+    player.play(lap, { until: '9' })
+    player.play(throwing)
+    ticks(player, 3)
+    expect(player.show().name).toBe('idle')
+  })
+
   test('asked again while playing, it carries on with the new params', async () => {
     const player = fresh()
 
     player.play(typing, { file: 'a.go' })
     ticks(player, 4)
     player.play(typing, { file: 'b.go' })
-    expect(player.show()).toEqual({ name: 'typing', frame: 4, params: { file: 'b.go' }, idleFrame: 0 })
+    expect(player.show()).toEqual({ name: 'typing', frame: 4, params: { file: 'b.go' }, idleFrame: 0, idleFrom: 'left-edge' })
   })
 
   test('moves the mascot only when the animation says it left it elsewhere', async () => {
@@ -141,14 +177,28 @@ describe('the player', () => {
     expect(player.show().idleFrame).toBe(0)
   })
 
+  test('starts the walk over from the middle when the animation says it left the mascot there', async () => {
+    const dash = make('dash', 1, null, { exit: frame => (frame < 2 ? 'in-place' : 'center') })
+    const player = createPlayer(idle, () => undefined)
+
+    ticks(player, 7)
+    player.play(dash)
+    ticks(player, 3)
+    player.stop(dash)
+    expect(player.show()).toEqual({ name: 'idle', frame: 0, params: {}, idleFrame: 0, idleFrom: 'center' })
+
+    player.restore({ name: 'idle', frame: 4, params: {}, idleFrame: 4, idleFrom: 'center' })
+    expect(player.show().idleFrom).toBe('center')
+  })
+
   test('picks a show back up after a reload, and falls back to idle for one it does not know', async () => {
     const player = fresh()
 
     player.restore({ name: 'wave', frame: 9, params: {}, idleFrame: 12 })
-    expect(player.show()).toEqual({ name: 'wave', frame: 9, params: {}, idleFrame: 12 })
+    expect(player.show()).toEqual({ name: 'wave', frame: 9, params: {}, idleFrame: 12, idleFrom: 'left-edge' })
 
     player.restore({ name: 'gone', frame: 3, params: {}, idleFrame: 5 })
-    expect(player.show()).toEqual({ name: 'idle', frame: 5, params: {}, idleFrame: 5 })
+    expect(player.show()).toEqual({ name: 'idle', frame: 5, params: {}, idleFrame: 5, idleFrom: 'left-edge' })
   })
 
   test('ignores a request to play the idle show itself', async () => {

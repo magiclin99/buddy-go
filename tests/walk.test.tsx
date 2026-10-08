@@ -15,6 +15,9 @@ const LOOKING_LEFT = '▟███▟█'
 const SPARK = '∘'
 const FULL_BALL = '│    PR    │'
 
+// The boxes are the band, then a row each: the air over the head, the head, the torso.
+const TORSO_BOX = 3
+
 const band = (bodyColumns: number) =>
   ({
     plugin: 'buddy-go',
@@ -42,6 +45,17 @@ test('draws the mascot in its body color on every surface that has the band', as
 
     await ui.unmount()
   }
+})
+
+test('keeps a row of air over the mascot', async $ => {
+  const ui = await $.ui.mount({ ...band(40), surface: 'terminal' })
+  const texts = (await ui.findAll({ type: 'Text' })).map(found => found.text)
+
+  expect(await ui.findAll({ type: 'Box' })).toHaveLength(5)
+  expect(texts[0]).toBe(' ')
+  expect(texts.at(-1)).toBe('▝▝   ▝▝')
+
+  await ui.unmount()
 })
 
 test('yields the band to a survey', async ($, on) => {
@@ -75,7 +89,7 @@ test('paces to the far edge, turns, and comes back', async ($, on) => {
   const torsoColumn = async () => {
     const boxes = await ui.findAll({ type: 'Box' })
 
-    return boxes[2]?.props.marginLeft
+    return boxes[TORSO_BOX]?.props.marginLeft
   }
   const isLooking = async (glyphs: string) =>
     (await ui.find({ type: 'Text', text: glyphs })) !== undefined
@@ -134,7 +148,7 @@ test('the cheat charges a growing ball above the hands, throws it off the right 
 
     // The row between the ball and the raised hands stays empty at full size.
     const drawn = await rows()
-    expect(drawn[5]).toBe(' ')
+    expect(drawn[6]).toBe(' ')
 
     await clock.advance(FRAME_MS * CHARGE_STAGE_FRAMES)
     expect(await has(TORSO_ARMS_UP)).toBe(true)
@@ -187,7 +201,7 @@ test('running gh pr create launches the banner', async ($, on) => {
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
   const ui = await $.ui.mount({ ...band(60), surface: 'terminal' })
-  const isLaunching = async () => (await ui.find({ type: 'Text', text: TORSO_ARMS_UP })) !== undefined
+  const isLaunching = async () => (await ui.find({ type: 'Text', text: SPARK })) !== undefined
 
   await $.tool.call({ tool: 'Bash', command: 'git push -u origin HEAD' })
   expect(await isLaunching()).toBe(false)
@@ -246,6 +260,176 @@ test('the edit cheat types the name it was given', async ($, on) => {
 
   await clock.advance(EDIT_FRAME_MS * EDIT_FRAMES)
   expect(await has('✎ launch.ts')).toBe(false)
+
+  await ui.unmount()
+})
+
+const RUN_FRAME_MS = 80
+const RUN_INTRO_MS = 100 * 16
+const RUN_LINGER_MS = RUN_FRAME_MS * 38
+const RUN_END_MS = RUN_FRAME_MS * 16
+// It looks where it runs; it looks ahead only to cheer.
+const LOOKING_AHEAD = '▛███▛█'
+const ran = { result: { stdout: '', stderr: '', interrupted: false }, text: '' }
+
+test('commands one after another are one run: it runs on between them, and ends only after the last', async ($, on) => {
+  const clock = mock.clock(on)
+  let land = () => {}
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on(
+    'tool.call',
+    () =>
+      new Promise<typeof ran>(resolve => {
+        land = () => resolve(ran)
+      }),
+  )
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...band(60), surface: 'terminal' })
+  const has = async (glyphs: string) =>
+    (await ui.find({ type: 'Text', text: glyphs })) !== undefined
+  const hasGround = async () =>
+    (await ui.findAll({ type: 'Text' })).some(found => String(found.text).includes('──────'))
+  const torsoColumn = async () => (await ui.findAll({ type: 'Box' }))[TORSO_BOX]?.props.marginLeft
+
+  expect(await hasGround()).toBe(false)
+  expect(await torsoColumn()).toBe(0)
+
+  const first = $.tool.call({ tool: 'Bash', command: 'npm test' })
+  await clock.advance(RUN_INTRO_MS + RUN_FRAME_MS * 20)
+  expect(await hasGround()).toBe(true)
+  expect(await has('npm')).toBe(true)
+  expect(await has('Finish!')).toBe(false)
+
+  land()
+  await first
+  expect(await has('Finish!')).toBe(true)
+  expect(await has(LOOKING_AHEAD)).toBe(false)
+
+  // Most of the way through running on, a second command: no new opening, just its name coming in.
+  await clock.advance(RUN_LINGER_MS - RUN_FRAME_MS * 4)
+  const second = $.tool.call({ tool: 'Bash', command: 'ls' })
+  await clock.advance(RUN_FRAME_MS * 30)
+  expect(await hasGround()).toBe(true)
+  expect(await has(LOOKING_AHEAD)).toBe(false)
+  expect(await has('Finish!')).toBe(false)
+  expect(await has('ls')).toBe(true)
+  expect(await has('npm')).toBe(false)
+  expect(await has('▒▒▒▒▒▒▒▒▒')).toBe(false)
+
+  land()
+  await second
+  await clock.advance(RUN_LINGER_MS)
+  expect(await has('Finish!')).toBe(true)
+  expect(await has(LOOKING_AHEAD)).toBe(true)
+  expect(await has(TORSO_ARMS_UP)).toBe(true)
+  expect(await hasGround()).toBe(true)
+
+  await clock.advance(RUN_END_MS)
+  expect(await has('Finish!')).toBe(false)
+  expect(await hasGround()).toBe(false)
+  expect(await has(TORSO)).toBe(true)
+  // 60 columns leave the 9-column sprite 51 of travel, and the middle is half of that.
+  expect(await torsoColumn()).toBe(25)
+
+  await ui.unmount()
+})
+
+test('commands side by side are one run: nothing marks the first one back, only the last', async ($, on) => {
+  const clock = mock.clock(on)
+  const landings: (() => void)[] = []
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on(
+    'tool.call',
+    () =>
+      new Promise<typeof ran>(resolve => {
+        landings.push(() => resolve(ran))
+      }),
+  )
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...band(60), surface: 'terminal' })
+  const has = async (glyphs: string) =>
+    (await ui.find({ type: 'Text', text: glyphs })) !== undefined
+
+  const short = $.tool.call({ tool: 'Bash', command: 'npm test' })
+  const long = $.tool.call({ tool: 'Bash', command: 'npm run build' })
+  await clock.advance(RUN_INTRO_MS + RUN_FRAME_MS * 20)
+  expect(landings).toHaveLength(2)
+
+  landings[0]?.()
+  await short
+  expect(await has('Finish!')).toBe(false)
+
+  // Well past where a run would have ended had the first one back counted.
+  await clock.advance(RUN_LINGER_MS + RUN_END_MS + RUN_FRAME_MS * 10)
+  expect(await has('Finish!')).toBe(false)
+  expect(await has(LOOKING_RIGHT)).toBe(true)
+
+  landings[1]?.()
+  await long
+  expect(await has('Finish!')).toBe(true)
+
+  await clock.advance(RUN_LINGER_MS + RUN_END_MS)
+  expect(await has('Finish!')).toBe(false)
+  expect(await has(TORSO)).toBe(true)
+
+  await ui.unmount()
+})
+
+test('a command that failed at once still gets the whole opening, then the run ends on a stumble', async ($, on) => {
+  const clock = mock.clock(on)
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('tool.call', () => ({ ...ran, text: 'exit 1', isError: true }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...band(60), surface: 'terminal' })
+  const has = async (glyphs: string) =>
+    (await ui.find({ type: 'Text', text: glyphs })) !== undefined
+
+  await $.tool.call({ tool: 'Bash', command: 'npm test' })
+  expect(await has('Oops!')).toBe(false)
+
+  await clock.advance(RUN_INTRO_MS)
+  expect(await has('Oops!')).toBe(true)
+  expect(await has('Finish!')).toBe(false)
+
+  await clock.advance(RUN_LINGER_MS)
+  expect(await has('Oops!')).toBe(true)
+  expect(await has(TORSO)).toBe(true)
+
+  await clock.advance(RUN_END_MS)
+  expect(await has('Oops!')).toBe(false)
+  expect((await ui.findAll({ type: 'Box' }))[TORSO_BOX]?.props.marginLeft).toBe(25)
+
+  await ui.unmount()
+})
+
+test('the run cheat runs six seconds, then cheers', async ($, on) => {
+  const clock = mock.clock(on)
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...band(60), surface: 'terminal' })
+  const has = async (glyphs: string) =>
+    (await ui.find({ type: 'Text', text: glyphs })) !== undefined
+
+  const answer = await $.prompt.submit({ text: 'buddy:run npm test', wait: false, origin: { kind: 'composer' } })
+  expect(answer.drop).toBe('Clawd: running npm test.')
+
+  await clock.advance(6000 - RUN_FRAME_MS)
+  expect(await has('Finish!')).toBe(false)
+
+  await clock.advance(RUN_FRAME_MS)
+  expect(await has('Finish!')).toBe(true)
+
+  const mark = await ui.find({ type: 'Text', text: 'Finish!' })
+  expect(mark?.props.color).toBe('success')
+  expect(mark?.props.bold).toBe(true)
+
+  await clock.advance(RUN_END_MS)
+  expect(await has('Finish!')).toBe(false)
+  expect((await ui.findAll({ type: 'Box' }))[TORSO_BOX]?.props.marginLeft).toBe(25)
 
   await ui.unmount()
 })

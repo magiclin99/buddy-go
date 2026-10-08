@@ -39,6 +39,8 @@ const CHARGE_FRAMES = CHARGE_STAGE_FRAMES * BALLS.length
 
 const PR_CREATE = /\bgh\s+pr\s+create\b/
 
+export const opensPr = (command: string) => PR_CREATE.test(command)
+
 export const launch: Animation = {
   name: 'launch',
   priority: 2,
@@ -119,7 +121,7 @@ export const launch: Animation = {
 
 export const launchTriggers: Triggers = (on, director) => {
   on('tool.call', { tool: 'Bash' }, ($, e, next) => {
-    if (PR_CREATE.test(e.command)) {
+    if (opensPr(e.command)) {
       director.play(launch)
     }
 
