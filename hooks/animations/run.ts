@@ -161,9 +161,15 @@ const piecesOf = (cells: readonly Cell[]): Piece[] => {
   }))
 }
 
-// One line of plain characters: anything wider than a column would push the banner out of shape.
+// What a command says before it gets to the point: the folders it steps into, and the variables it sets.
+const VALUE = String.raw`(?:"[^"]*"|'[^']*'|\$\([^)]*\)|[^\s;&|"'])`
+const PREAMBLE = new RegExp(String.raw`^(?:cd\s+${VALUE}+\s*(?:&&|;)\s*|[A-Za-z_]\w*=${VALUE}*\s+)+`)
+
+// One line of plain characters: anything wider than a column would push the banner out of shape. The
+// preamble is left off, or every command run from the same folder would read the same.
 const brief = (command: string | undefined) => {
-  const line = (command ?? '').trim().split('\n')[0] ?? ''
+  const first = (command ?? '').trim().split('\n')[0] ?? ''
+  const line = first.replace(PREAMBLE, '') || first
   const plain = /^[\x20-\x7e]*/.exec(line)?.[0] ?? ''
   const text = plain.replace(/ +/g, ' ').trim()
 

@@ -361,12 +361,28 @@ describe('run', () => {
     const shown = (typed: string, on = stage) => run.draw(intro + 30, on, { command: typed })[1]?.spans
       .find(span => span.backgroundColor === '#f2c94c')?.text
 
-    expect(shown('cd /Users/someone/Projects/thing && npm run build')).toBe('cd /Users/someone/Pr…')
+    expect(shown('git status --short --branch --untracked-files')).toBe('git status --short -…')
     expect(shown('git commit -m "修正"')).toBe('git commit -m "…')
     expect(shown('echo one\necho two')).toBe('echo one')
     expect(onTheBanner(intro + 30, {})).toBeUndefined()
     expect(shown('cd /Users/someone/Projects/thing', stageAt(0, 40))).toBe('cd /…')
     expect(shown('npm test', stageAt(0, 24))).toBeUndefined()
+  })
+
+  test('leaves off the folders a command steps into and the variables it sets on the way', async () => {
+    const shown = (typed: string) => run.draw(intro + 30, stage, { command: typed })[1]?.spans
+      .find(span => span.backgroundColor === '#f2c94c')?.text
+
+    expect(shown('cd /Users/someone/Projects/thing && npm run build')).toBe('npm run build')
+    expect(shown('cd "/Users/some one/thing"; cd src && ls')).toBe('ls')
+    expect(shown('CI=1 NODE_ENV=test npm test')).toBe('npm test')
+    expect(shown('cd /repo && GH_TOKEN=$(gh auth token --user me) gh pr list')).toBe('gh pr list')
+    expect(shown('NAME="a b" make')).toBe('make')
+    // With nothing after it, the preamble is the command.
+    expect(shown('cd /repo')).toBe('cd /repo')
+    expect(shown('CI=1')).toBe('CI=1')
+    expect(shown('cd /repo &&')).toBe('cd /repo &&')
+    expect(shown('cdk deploy && ls')).toBe('cdk deploy && ls')
   })
 
   test('keeps the world out from behind the banner and its rope', async () => {
