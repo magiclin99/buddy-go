@@ -134,7 +134,7 @@ export const think: Animation = {
 
       return { until: String(Math.round((seconds * 1000) / FRAME_MS)) }
     },
-    reply: () => 'Clawd: thinking.',
+    reply: () => 'Buddy: thinking.',
   },
 
   draw: (frame, stage, params) => {

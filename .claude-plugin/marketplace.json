@@ -1,5 +1,6 @@
 {
   "name": "buddy-go",
+  "description": "Buddy, an unofficial fan-made companion that lives above the Claude Code prompt.",
   "owner": { "name": "magiclin99" },
   "plugins": [{ "name": "buddy-go", "source": "./" }]
 }

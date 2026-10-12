@@ -30,7 +30,7 @@ export const wait: Animation = {
   frameMs: frame => (frame < TELEPORT_FRAMES ? TELEPORT_FRAME_MS : STEP_MS),
   // Stopped before it reappears, the mascot never left; after, it stands at the left edge.
   exit: frame => (frame < VANISH_FRAMES + GAP_FRAMES ? 'in-place' : 'left-edge'),
-  cheat: { name: 'your-turn', reply: () => 'Clawd: your turn.' },
+  cheat: { name: 'your-turn', reply: () => 'Buddy: your turn.' },
 
   draw: (frame, { columns, x }) => {
     if (frame < VANISH_FRAMES) {

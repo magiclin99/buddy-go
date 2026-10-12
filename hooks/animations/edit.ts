@@ -59,7 +59,7 @@ export const edit: Animation = {
   cheat: {
     name: 'edit',
     params: (typed): Params => (typed === '' ? {} : { file: typed }),
-    reply: params => (params.file === undefined ? 'Clawd: editing.' : `Clawd: editing ${params.file}.`),
+    reply: params => (params.file === undefined ? 'Buddy: editing.' : `Buddy: editing ${params.file}.`),
   },
 
   draw: (frame, { columns, x }, params) => {
