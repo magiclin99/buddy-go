@@ -376,7 +376,7 @@ export const run: Animation = {
       ended: String(CHEAT_FRAMES),
       until: String(CHEAT_FRAMES),
     }),
-    reply: params => (params.command === undefined ? 'Clawd: running.' : `Clawd: running ${params.command}.`),
+    reply: params => (params.command === undefined ? 'Buddy: running.' : `Buddy: running ${params.command}.`),
   },
 
   draw: (frame, stage, params) => {

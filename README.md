@@ -2,7 +2,7 @@
 
 **Give your Claude Code prompt a tiny coworker.**
 
-Buddy (you may know it as Clawd, the Claude Code mascot) moves in right above your input box and reacts to whatever Claude is up to. It paces when Claude thinks, sprints when your commands run, types when files change, and hurls your pull requests into orbit.
+Buddy is a fan-made pixel companion, inspired by Clawd from Claude Code. It moves in right above your input box and reacts to whatever Claude is up to. It paces when Claude thinks, sprints when your commands run, types when files change, and hurls your pull requests into orbit.
 
 ![Buddy sprinting while a command runs](demo/run.gif)
 
@@ -136,4 +136,4 @@ To record a new animation, add a line at the bottom of `demo/record.sh`: `record
 
 ---
 
-buddy-go is an unofficial fan mod and is not affiliated with Anthropic.
+buddy-go is an unofficial fan mod. It is not affiliated with, sponsored by or endorsed by Anthropic. Claude, Claude Code and Clawd belong to Anthropic.

@@ -255,7 +255,7 @@ test('the edit cheat types the name it was given', async ($, on) => {
     (await ui.find({ type: 'Text', text: glyphs })) !== undefined
 
   const answer = await $.prompt.submit({ text: 'buddy:edit launch.ts', wait: false, origin: { kind: 'composer' } })
-  expect(answer.drop).toBe('Clawd: editing launch.ts.')
+  expect(answer.drop).toBe('Buddy: editing launch.ts.')
   expect(await has('✎ launch.ts')).toBe(true)
 
   await clock.advance(EDIT_FRAME_MS * EDIT_FRAMES)
@@ -415,7 +415,7 @@ test('the run cheat runs six seconds, then cheers', async ($, on) => {
     (await ui.find({ type: 'Text', text: glyphs })) !== undefined
 
   const answer = await $.prompt.submit({ text: 'buddy:run npm test', wait: false, origin: { kind: 'composer' } })
-  expect(answer.drop).toBe('Clawd: running npm test.')
+  expect(answer.drop).toBe('Buddy: running npm test.')
 
   await clock.advance(6000 - RUN_FRAME_MS)
   expect(await has('Finish!')).toBe(false)
@@ -665,7 +665,7 @@ test('an edit cuts into a thought, and the thought does not come back once it is
     (await ui.find({ type: 'Text', text: glyphs })) !== undefined
 
   const answer = await $.prompt.submit({ text: 'buddy:think 2', wait: false, origin: { kind: 'composer' } })
-  expect(answer.drop).toBe('Clawd: thinking.')
+  expect(answer.drop).toBe('Buddy: thinking.')
   expect(await has('.')).toBe(true)
 
   await clock.advance(THINK_FRAME_MS * AHA_AFTER_FRAMES)
