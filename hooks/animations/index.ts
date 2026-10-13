@@ -1,6 +1,7 @@
 import type { Animation, Triggers } from '../lib/frame'
 import { edit, editTriggers } from './edit'
 import { launch, launchTriggers } from './launch'
+import { pong, pongTriggers } from './pong'
 import { run, runTriggers } from './run'
 import { think, thinkTriggers } from './think'
 import { wait, waitTriggers } from './wait'
@@ -9,12 +10,13 @@ import { walk } from './walk'
 export const IDLE = walk
 
 // An animation is a file beside these, a line here for it, and a line below for its triggers; its cheat comes with it.
-export const ANIMATIONS: readonly Animation[] = [walk, launch, wait, edit, run, think]
+export const ANIMATIONS: readonly Animation[] = [walk, launch, wait, edit, run, pong, think]
 
 export const registerTriggers: Triggers = (on, director) => {
   launchTriggers(on, director)
   editTriggers(on, director)
   runTriggers(on, director)
+  pongTriggers(on, director)
   thinkTriggers(on, director)
   waitTriggers(on, director)
 }

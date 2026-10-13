@@ -2,7 +2,7 @@
 
 **Give your Claude Code prompt a tiny coworker.**
 
-Buddy is a fan-made pixel companion, inspired by Clawd from Claude Code. It moves in right above your input box and reacts to whatever Claude is up to. It paces when Claude thinks, sprints when your commands run, types when files change, and hurls your pull requests into orbit.
+Buddy is a fan-made pixel companion, inspired by Clawd from Claude Code. It moves in right above your input box and reacts to whatever Claude is up to. It paces when Claude thinks, sprints when your commands run, plays ping pong with the APIs Claude calls, types when files change, and hurls your pull requests into orbit.
 
 ![Buddy sprinting while a command runs](demo/run.gif)
 
@@ -29,6 +29,12 @@ A few steps out, a few steps back, a `. o O` bubble beside its head, and a pause
 ![Buddy running with the command on a banner](demo/run.gif)
 
 Every Bash command is a race. The ground rolls in, trees fly past, and Buddy tows your command behind it on a banner. Commands that follow each other are one long run. It ends with a green `Finish!` and a cheer, or a red `Oops!` and a stumble. Run for more than ten seconds and Buddy starts gasping.
+
+### Plays ping pong with your APIs
+
+![Buddy playing ping pong against api.github.com](demo/ping-pong.gif)
+
+A request goes out, a response comes back. Ping, pong. Whenever Claude runs `curl`, `wget`, `gh api` or fetches a page, a table rolls out and Buddy rallies against whoever is on the other end, their host name beside the far paddle. A call that comes back fine ends with a smash and a green `Point!`. One that fails sails past Buddy's paddle: `Miss!`
 
 ### Types along when files change
 
@@ -62,6 +68,7 @@ You don't have to wait for Claude. Type a cheat straight into the prompt, with n
 |---|---|
 | `buddy:think 20` | pace and think for 20 seconds (8 if you leave the number out) |
 | `buddy:run npm test` | sprint for six seconds with `npm test` on the banner |
+| `buddy:ping-pong api.github.com` | play four rallies against `api.github.com`, then take the point |
 | `buddy:edit main.ts` | type into `main.ts` |
 | `buddy:send-pr` | launch a PR |
 | `buddy:your-turn` | wave at you |
@@ -102,10 +109,12 @@ hooks/
 │   ├── think.ts
 │   ├── edit.ts
 │   ├── run.ts
+│   ├── pong.ts
 │   └── launch.ts
 └── lib/
     ├── player.ts       what is playing, what is queued, where Buddy stands
     ├── body.ts         Buddy's body parts
+    ├── command.ts      reads a shell command: is it an API call, and to whom
     ├── render.tsx      turns an animation's rows into elements
     └── frame.ts        shared types
 tests/

@@ -78,3 +78,15 @@ export const layRow = (pieces: readonly Piece[]): Row => {
 
   return { indent, spans }
 }
+
+// Something drawn beside the mascot: which of its rows, and the column it starts at.
+export type Extra = { row: number; at: number; span: Span }
+
+// The mascot's rows with what goes beside them; nothing of it may overlap.
+export const withExtras = (body: readonly Row[], extras: readonly Extra[]): Row[] =>
+  body.map((row, index) =>
+    layRow([
+      { at: row.indent, spans: row.spans },
+      ...extras.filter(extra => extra.row === index).map(extra => ({ at: extra.at, spans: [extra.span] })),
+    ]),
+  )

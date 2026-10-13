@@ -63,4 +63,5 @@ record your-turn "buddy:your-turn" 5
 record think "buddy:think 18" 20
 record edit "buddy:edit think.ts" 4
 record run "buddy:run npm test" 9
+record ping-pong "buddy:ping-pong api.github.com" 8
 record send-pr "buddy:send-pr" 5.5 292

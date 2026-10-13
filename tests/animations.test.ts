@@ -3,10 +3,12 @@ import { describe, expect, test } from 'claude-code/testing'
 import { ANIMATIONS, byCheat, byName } from '../hooks/animations'
 import { edit } from '../hooks/animations/edit'
 import { launch } from '../hooks/animations/launch'
+import { pong } from '../hooks/animations/pong'
 import { run } from '../hooks/animations/run'
 import { think } from '../hooks/animations/think'
 import { wait } from '../hooks/animations/wait'
 import { stageAt, walk } from '../hooks/animations/walk'
+import { callsApi, hostOf } from '../hooks/lib/command'
 import { width } from '../hooks/lib/frame'
 import type { Row } from '../hooks/lib/frame'
 
@@ -42,6 +44,11 @@ describe('the registry', () => {
     expect(byCheat('buddy:think 20')?.params).toEqual({ until: '160' })
     expect(byCheat('buddy:think 999')?.params).toEqual({ until: '480' })
     expect(byCheat('buddy:think soon')?.params).toEqual({ until: '64' })
+    expect(byCheat('buddy:ping-pong api.github.com')?.animation).toBe(pong)
+    expect(byCheat('buddy:ping-pong api.github.com')?.params).toEqual({ host: 'api.github.com', ok: 'true', until: '80' })
+    expect(byCheat('buddy:ping-pong api.github.com')?.reply).toBe('Buddy: ping pong with api.github.com.')
+    expect(byCheat('buddy:ping-pong')?.params).toEqual({ ok: 'true', until: '80' })
+    expect(byCheat('buddy:ping-pong')?.reply).toBe('Buddy: ping pong.')
     expect(byCheat('buddy:nope')).toBeUndefined()
     expect(byCheat('send-pr')).toBeUndefined()
     expect(byCheat('please run buddy:send-pr')).toBeUndefined()
@@ -680,5 +687,181 @@ describe('think, once the thought is over', () => {
     expect(think.exit?.(30, {})).toEqual({ steps: 5 })
     expect(think.exit?.(44, {})).toEqual({ steps: 0 })
     expect(think.exit?.(72, over)).toEqual({ steps: 6 })
+  })
+})
+
+describe('reading a command', () => {
+  test('knows a call to a server by the program that makes it, wherever in the line it starts', async () => {
+    for (const command of [
+      'curl -s https://api.github.com/user',
+      'cd /repo && curl localhost:8080/health',
+      'TOKEN=$(gh auth token --user me) curl -H "x: y" https://a.example/c',
+      'echo hi | wget -qO- http://x.example',
+      'gh api repos/o/r/pulls',
+      'http GET :3000/users',
+      'xh httpbin.org/get',
+      'npm run build\ncurl -X POST https://deploy.example/hook',
+    ]) {
+      expect(callsApi(command)).toBe(true)
+    }
+
+    for (const command of [
+      'echo "curl is great"',
+      'brew install curl',
+      'which curl',
+      'curlie https://x.example',
+      'npm test',
+      'gh pr create --title t',
+    ]) {
+      expect(callsApi(command)).toBe(false)
+    }
+  })
+
+  test('names who it is talking to, as far as the command says', async () => {
+    expect(hostOf('curl -s https://api.github.com/user')).toBe('api.github.com')
+    expect(hostOf('curl http://127.0.0.1:3000/x')).toBe('127.0.0.1:3000')
+    expect(hostOf('cd /repo && curl localhost:8080/health')).toBe('localhost:8080')
+    expect(hostOf('gh api user')).toBe('api.github.com')
+    expect(hostOf('curl "$URL"')).toBeUndefined()
+  })
+})
+
+describe('pong', () => {
+  const stage = stageAt(8, 70)
+  const rally = { host: 'api.github.com' }
+  const draw = (frame: number, params: Record<string, string> = rally, on = stage) => pong.draw(frame, on, params)
+  // Which row a thing is on and the column it starts at, by how it is drawn.
+  const find = (rows: readonly Row[], isIt: (span: Row['spans'][number]) => boolean) => {
+    for (const [row, { indent, spans }] of rows.entries()) {
+      const index = spans.findIndex(isIt)
+
+      if (index >= 0) {
+        return { row, column: indent + width(spans.slice(0, index)) + (spans[index]?.gap ?? 0) }
+      }
+    }
+
+    return undefined
+  }
+  const ball = (frame: number, params?: Record<string, string>, on?: typeof stage) =>
+    find(draw(frame, params, on), span => span.text === 'o')
+  const ours = (frame: number, params?: Record<string, string>, on?: typeof stage) =>
+    find(draw(frame, params, on), span => span.color === '#e5533d')
+  const theirs = (frame: number, params?: Record<string, string>, on?: typeof stage) =>
+    find(draw(frame, params, on), span => span.color === '#5aa9e6')
+
+  test('is as tall as the walk: a table between two paddles, a net on it, the far paddle named', async () => {
+    const rows = draw(5)
+
+    expect(rows).toHaveLength(3)
+    expect(find(rows, span => span.text === '▀'.repeat(23))).toEqual({ row: 2, column: 19 })
+    expect(find(rows, span => span.text === '│')).toEqual({ row: 1, column: 30 })
+    expect(ours(5)?.column).toBe(17)
+    expect(theirs(5)?.column).toBe(43)
+    expect(find(rows, span => span.text === 'api.github.com')).toEqual({ row: 1, column: 45 })
+  })
+
+  test('sends the ball over the net and back, one way every ten frames', async () => {
+    expect(pong.frameMs(0) * 10).toBe(700)
+    expect([0, 2, 5, 8, 10].map(frame => ball(frame))).toEqual([
+      { row: 1, column: 18 },
+      { row: 0, column: 23 },
+      { row: 0, column: 30 },
+      { row: 0, column: 37 },
+      { row: 1, column: 42 },
+    ])
+    expect(ball(15)).toEqual(ball(5))
+    expect(ball(20)).toEqual(ball(0))
+  })
+
+  test('brings each paddle down for its hit and back up after, a word for each', async () => {
+    const said = (frame: number) => lines(draw(frame))[0]?.match(/ping|pong/)?.[0]
+
+    expect([19, 0, 1, 2, 5].map(frame => ours(frame)?.row)).toEqual([1, 1, 1, 0, 0])
+    expect([9, 10, 11, 12, 15].map(frame => theirs(frame)?.row)).toEqual([1, 1, 1, 0, 0])
+    expect(text(draw(0)[1])).toContain('▝▜██████▀')
+    expect(text(draw(5)[1])).toContain('▝▜██████▘')
+    expect([0, 3, 4, 10, 13, 14].map(said)).toEqual(['ping', 'ping', undefined, 'pong', 'pong', undefined])
+  })
+
+  test('plays across the longer stretch of the band, mirrored when that is to the left', async () => {
+    const onTheRight = stageAt(50, 70)
+
+    expect(ours(5, rally, onTheRight)?.column).toBe(49)
+    expect(theirs(5, rally, onTheRight)?.column).toBe(23)
+    expect(ball(0, rally, onTheRight)).toEqual({ row: 1, column: 48 })
+    expect(find(draw(5, rally, onTheRight), span => span.text === 'api.github.com')?.column).toBe(8)
+    expect(text(draw(5, rally, onTheRight)[0])).toContain('▟███▟█')
+  })
+
+  test('cuts the name to the room past the far paddle, and swings at the air when there is no room for a table', async () => {
+    expect(lines(draw(3, rally, stageAt(2, 30)))[1]).toContain('api.…')
+    expect(find(draw(5, {}, stage), span => span.color === 'inactive' && span.text !== '│')).toBeUndefined()
+
+    const cramped = draw(3, rally, stageAt(2, 14))
+
+    expect(cramped).toHaveLength(3)
+    expect(lines(cramped).join('')).not.toContain('o')
+    expect(lines(cramped).join('')).not.toContain('▀▀')
+    expect(text(cramped[1])).toBe('▝▜██████▘')
+  })
+
+  test('never overlaps what it draws or draws past either edge, to the end of either result', async () => {
+    const plays = [rally, { ...rally, ok: 'true', until: '40' }, { ...rally, ok: 'false', until: '50' }]
+
+    for (const columns of [9, 14, 24, 30, 40, 80]) {
+      for (const step of [0, 7, 60]) {
+        for (const params of plays) {
+          for (let frame = 0; frame < 70; frame += 1) {
+            for (const row of pong.draw(frame, stageAt(step, columns), params)) {
+              expect(row.indent >= 0).toBe(true)
+              expect(row.spans.every(span => (span.gap ?? 0) >= 0)).toBe(true)
+              expect(row.indent + width(row.spans) <= columns).toBe(true)
+            }
+          }
+        }
+      }
+    }
+  })
+})
+
+describe('pong, once the last call is back', () => {
+  const stage = stageAt(8, 70)
+  const won = { host: 'api.github.com', ok: 'true', until: '40' }
+  const lost = { host: 'api.github.com', ok: 'false', until: '50' }
+  const ballOn = (frame: number, params: Record<string, string>) => {
+    const rows = pong.draw(frame, stage, params)
+    const row = rows.findIndex(({ spans }) => spans.some(span => span.text === 'o'))
+
+    return row < 0 ? undefined : row
+  }
+
+  test('rallies while a call is out, and has an end once it is told when to stop', async () => {
+    expect(pong.framesFor?.({})).toBe(null)
+    expect(pong.framesFor?.(won)).toBe(58)
+  })
+
+  test('smashes the ball past the far paddle for a call that came back fine, then cheers', async () => {
+    expect([40, 41, 43, 44].map(frame => ballOn(frame, won))).toEqual([1, 1, 0, 0])
+    expect(lines(pong.draw(44, stage, won)).join('')).not.toContain('Point!')
+
+    const cheer = pong.draw(45, stage, won)
+
+    expect(ballOn(45, won)).toBeUndefined()
+    expect(text(cheer[1])).toContain('▜██████▘')
+    expect(cheer[0]?.spans.find(span => span.text === 'Point!')).toMatchObject({ color: 'success', bold: true })
+    expect(text(pong.draw(57, stage, won)[0])).toContain('Point!')
+  })
+
+  test('lets the ball by under a raised paddle for one that failed, eyes shut', async () => {
+    expect([50, 55, 59].map(frame => ballOn(frame, lost))).toEqual([1, 0, 1])
+    expect(text(pong.draw(59, stage, lost)[1])).toContain('▝▜██████▘')
+
+    const missed = pong.draw(60, stage, lost)
+
+    expect(missed[1]).toMatchObject({ indent: 6 })
+    expect(text(missed[1])?.startsWith('o')).toBe(true)
+    expect(text(missed[0])).toContain('▂███▂█')
+    expect(missed[0]?.spans.find(span => span.text === 'Miss!')).toMatchObject({ color: 'error', bold: true })
+    expect(ballOn(63, lost)).toBeUndefined()
   })
 })
