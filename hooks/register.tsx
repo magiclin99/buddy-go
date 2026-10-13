@@ -89,17 +89,28 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    // The band is shared: what the other mods and the engine draw here stays, above the mascot.
+    const rest = await next(e)
+
     if (e.props.hasSurvey) {
-      return next(e)
+      return rest
     }
 
     const shown = (await read($, show)) ?? player.show()
     const animation = byName(shown.name) ?? IDLE
+    const { Box } = $.ui.resolve(e)
 
     // A row of air over the mascot's head, whatever it is doing.
-    return renderRows($.ui.resolve(e), [
+    const mascot = renderRows($.ui.resolve(e), [
       BLANK_ROW,
       ...animation.draw(shown.frame, stageAt(shown.idleFrame, e.props.bodyColumns, shown.idleFrom), shown.params),
     ])
+
+    return (
+      <Box flexDirection="column">
+        {rest}
+        {mascot}
+      </Box>
+    )
   })
 }
