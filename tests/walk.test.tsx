@@ -1,3 +1,4 @@
+import type { On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
 const BODY = '#d77757'
@@ -15,8 +16,17 @@ const LOOKING_LEFT = '▟███▟█'
 const SPARK = '∘'
 const FULL_BALL = '│    PR    │'
 
-// The boxes are the band, then a row each: the air over the head, the head, the torso.
-const TORSO_BOX = 3
+// The boxes are the column the mod shares the band in, the mascot's own, then a row each: the air over the
+// head, the head, the torso.
+const TORSO_BOX = 4
+
+// What is beneath the mod in the band: the engine's own row, with nothing in it.
+const emptyBand = (on: On) =>
+  on('ui.render', { component: 'AbovePrompt' }, ($, e) => {
+    const { Text } = $.ui.resolve(e)
+
+    return <Text>{''}</Text>
+  })
 
 const band = (bodyColumns: number) =>
   ({
@@ -32,7 +42,9 @@ const band = (bodyColumns: number) =>
     },
   }) as const
 
-test('draws the mascot in its body color on every surface that has the band', async $ => {
+test('draws the mascot in its body color on every surface that has the band', async ($, on) => {
+  emptyBand(on)
+
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...band(40), surface })
 
@@ -47,13 +59,57 @@ test('draws the mascot in its body color on every surface that has the band', as
   }
 })
 
-test('keeps a row of air over the mascot', async $ => {
+test('keeps a row of air over the mascot', async ($, on) => {
+  emptyBand(on)
+
   const ui = await $.ui.mount({ ...band(40), surface: 'terminal' })
   const texts = (await ui.findAll({ type: 'Text' })).map(found => found.text)
 
-  expect(await ui.findAll({ type: 'Box' })).toHaveLength(5)
-  expect(texts[0]).toBe(' ')
+  expect(await ui.findAll({ type: 'Box' })).toHaveLength(6)
+  // The engine's own row comes first, then the air.
+  expect(texts.slice(0, 2)).toEqual(['', ' '])
   expect(texts.at(-1)).toBe('▝▝   ▝▝')
+
+  await ui.unmount()
+})
+
+test('shares the band: what another mod draws there stays, above the mascot', async ($, on) => {
+  on('ui.render', { component: 'AbovePrompt' }, ($, e) => {
+    const { Text } = $.ui.resolve(e)
+
+    return <Text>other-mod-status</Text>
+  })
+
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const ui = await $.ui.mount({ ...band(40), surface })
+    const texts = (await ui.findAll({ type: 'Text' })).map(found => found.text)
+
+    expect(texts[0]).toBe('other-mod-status')
+    expect(await ui.find({ type: 'Text', text: TORSO })).toBeDefined()
+    expect(texts.at(-1)).toBe('▝▝   ▝▝')
+
+    await ui.unmount()
+  }
+})
+
+test('keeps what another mod draws through an animation, not only the walk', async ($, on) => {
+  const clock = mock.clock(on)
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('ui.render', { component: 'AbovePrompt' }, ($, e) => {
+    const { Text } = $.ui.resolve(e)
+
+    return <Text>other-mod-status</Text>
+  })
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...band(60), surface: 'terminal' })
+  const has = async (glyphs: string) =>
+    (await ui.find({ type: 'Text', text: glyphs })) !== undefined
+
+  await $.prompt.submit({ text: CHEAT, wait: false, origin: { kind: 'composer' } })
+  await clock.advance(FRAME_MS * CHARGE_STAGE_FRAMES * 3)
+  expect(await has(FULL_BALL)).toBe(true)
+  expect(await has('other-mod-status')).toBe(true)
 
   await ui.unmount()
 })
@@ -81,6 +137,7 @@ test('yields the band to a survey', async ($, on) => {
 test('paces to the far edge, turns, and comes back', async ($, on) => {
   const clock = mock.clock(on)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  emptyBand(on)
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
   // 12 columns leave the 9-column sprite 3 columns of travel.
@@ -115,6 +172,7 @@ test('the cheat charges a growing ball above the hands, throws it off the right 
   const clock = mock.clock(on)
   let entered = 0
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  emptyBand(on)
   on('prompt.submit', ($, e) => {
     entered += 1
 
@@ -148,7 +206,7 @@ test('the cheat charges a growing ball above the hands, throws it off the right 
 
     // The row between the ball and the raised hands stays empty at full size.
     const drawn = await rows()
-    expect(drawn[6]).toBe(' ')
+    expect(drawn[7]).toBe(' ')
 
     await clock.advance(FRAME_MS * CHARGE_STAGE_FRAMES)
     expect(await has(TORSO_ARMS_UP)).toBe(true)
@@ -170,6 +228,7 @@ test('the cheat charges a growing ball above the hands, throws it off the right 
 test('standing in the right half, the mascot throws the ball to the left', async ($, on) => {
   const clock = mock.clock(on)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  emptyBand(on)
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
   const ui = await $.ui.mount({ ...band(60), surface: 'terminal' })
@@ -197,6 +256,7 @@ test('standing in the right half, the mascot throws the ball to the left', async
 test('running gh pr create launches the banner', async ($, on) => {
   mock.clock(on)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  emptyBand(on)
   on('tool.call', () => ({ result: { stdout: '', stderr: '', interrupted: false }, text: '' }))
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
@@ -218,6 +278,7 @@ const EDIT_FRAMES = 20
 test('editing a file sets the mascot typing beside its name, then it walks on', async ($, on) => {
   const clock = mock.clock(on)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  emptyBand(on)
   on('tool.call', () => ({ result: {}, text: '' }))
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
@@ -248,6 +309,7 @@ test('editing a file sets the mascot typing beside its name, then it walks on', 
 test('the edit cheat types the name it was given', async ($, on) => {
   const clock = mock.clock(on)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  emptyBand(on)
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
   const ui = await $.ui.mount({ ...band(60), surface: 'terminal' })
@@ -276,6 +338,7 @@ test('commands one after another are one run: it runs on between them, and ends 
   const clock = mock.clock(on)
   let land = () => {}
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  emptyBand(on)
   on(
     'tool.call',
     () =>
@@ -339,6 +402,7 @@ test('commands side by side are one run: nothing marks the first one back, only 
   const clock = mock.clock(on)
   const landings: (() => void)[] = []
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  emptyBand(on)
   on(
     'tool.call',
     () =>
@@ -380,6 +444,7 @@ test('commands side by side are one run: nothing marks the first one back, only 
 test('a command that failed at once still gets the whole opening, then the run ends on a stumble', async ($, on) => {
   const clock = mock.clock(on)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  emptyBand(on)
   on('tool.call', () => ({ ...ran, text: 'exit 1', isError: true }))
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
@@ -408,6 +473,7 @@ test('a command that failed at once still gets the whole opening, then the run e
 test('the run cheat runs six seconds, then cheers', async ($, on) => {
   const clock = mock.clock(on)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  emptyBand(on)
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
   const ui = await $.ui.mount({ ...band(60), surface: 'terminal' })
@@ -442,6 +508,7 @@ const turnEnded = { durationMs: 1, isAborted: false, turnId: 't1', reason: 'answ
 test('only a reply that ends by asking the person starts the wave', async ($, on) => {
   const clock = mock.clock(on)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  emptyBand(on)
   on('turn.complete', ($, e) => ({ text: e.answer }))
   on('turn.start', ($, e) => ({ turnId: e.turnId }))
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
@@ -477,6 +544,7 @@ const LAUNCH_MS = FRAME_MS * (RAISE_FRAMES + WIND_UP_FRAMES + FLIGHT_FRAMES)
 test('the player lets a launch cut into the wave, then brings the wave back', async ($, on) => {
   const clock = mock.clock(on)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  emptyBand(on)
   on('turn.complete', ($, e) => ({ text: e.answer }))
   on('turn.start', ($, e) => ({ turnId: e.turnId }))
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
@@ -510,6 +578,7 @@ test('the player lets a launch cut into the wave, then brings the wave back', as
 test('the player holds a wave asked for mid-launch until the ball is gone, and drops it if the person replies first', async ($, on) => {
   const clock = mock.clock(on)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  emptyBand(on)
   on('turn.start', ($, e) => ({ turnId: e.turnId }))
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
@@ -555,6 +624,7 @@ test('thinking sets the mascot pacing under a thought, and one long enough ends 
     return $.turn.step({ turnId: 't1', index: 0, model: 'claude', messageCount: 1 })
   }
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  emptyBand(on)
   on('turn.step', async function* () {
     yield { kind: 'thinking', index: 0, text: 'hmm' }
     await answered
@@ -614,6 +684,7 @@ test('a thought that is over at once, one cut short, and a subagent\'s leave no 
     return $.turn.step({ turnId: 't1', index: 0, model: 'claude', messageCount: 1 })
   }
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  emptyBand(on)
   on('turn.step', async function* () {
     yield { kind: 'thinking', index: 0, text: 'hmm' }
     await answered
@@ -657,6 +728,7 @@ test('a thought that is over at once, one cut short, and a subagent\'s leave no 
 test('an edit cuts into a thought, and the thought does not come back once it is over', async ($, on) => {
   const clock = mock.clock(on)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  emptyBand(on)
   on('tool.call', () => ({ result: {}, text: '' }))
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 

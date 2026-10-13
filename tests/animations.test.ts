@@ -153,12 +153,43 @@ describe('edit', () => {
     expect(text(edit.draw(15, stage, { file })[1])).toContain('▬▬ ▬▬▬ ▬▬▬▬▬▬ ▬▌')
   })
 
-  test('names the file without its path, cut to fit', async () => {
-    const longName = 'tests/a-very-long-file-name.test.tsx'
+  const longName = 'tests/a-very-long-file-name.test.tsx'
 
+  test('names the file without its path, whole while the band has room and cut where it has not', async () => {
     expect(text(edit.draw(0, stage, { file })[2])).toBe('▝▝   ▝▝✎ launch.ts')
-    expect(text(edit.draw(0, stage, { file: longName })[2])).toBe('▝▝   ▝▝✎ a-very-long-fil…')
+    expect(text(edit.draw(0, stage, { file: longName })[2])).toBe('▝▝   ▝▝✎ a-very-long-file-name.test.tsx')
     expect(text(edit.draw(0, stage, {})[2])).toBe('▝▝   ▝▝')
+
+    const cut = edit.draw(0, stageAt(0, 40), { file: longName })[2]
+
+    expect(text(cut)).toBe('▝▝   ▝▝✎ a-very-long-file-name.tes…')
+    expect((cut?.indent ?? 0) + width(cut?.spans ?? [])).toBe(40)
+  })
+
+  test('moves the page to the left for a name that only fits there, the name reaching further out than the lines', async () => {
+    const short = edit.draw(4, stageAt(36, 70), { file })
+    const long = edit.draw(4, stageAt(36, 70), { file: longName })
+
+    expect(short[1]?.indent).toBe(36)
+    expect(text(short[2])).toBe('▝▝   ▝▝✎ launch.ts')
+    expect(long[1]?.indent).toBe(15)
+    expect(long[2]?.indent).toBe(1)
+    expect(text(long[2])).toBe('✎ a-very-long-file-name.test.tsx▝▝   ▝▝')
+    expect(text(long[0])).toContain('▟███▟█')
+  })
+
+  test('never draws past either edge, however long the name', async () => {
+    for (const columns of [9, 20, 30, 40, 60, 100]) {
+      for (const step of [0, 7, 30, 60]) {
+        for (const named of [file, longName, `${'x'.repeat(90)}.ts`]) {
+          for (const row of edit.draw(4, stageAt(step, columns), { file: named })) {
+            expect(row.indent >= 0).toBe(true)
+            expect(row.spans.every(span => (span.gap ?? 0) >= 0)).toBe(true)
+            expect(row.indent + width(row.spans) <= columns).toBe(true)
+          }
+        }
+      }
+    }
   })
 
   test('puts the page on the left when the right has no room, and drops it when neither side has', async () => {
