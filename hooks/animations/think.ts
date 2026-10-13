@@ -1,7 +1,7 @@
 import { ARMS, FEET, SPRITE_COLUMNS, SWEAT, SWEAT_COLOR, mascot } from '../lib/body'
 import type { Gaze } from '../lib/body'
-import { frameIn, layRow } from '../lib/frame'
-import type { Animation, Director, Params, Row, Span, Stage, Triggers } from '../lib/frame'
+import { frameIn, withExtras } from '../lib/frame'
+import type { Animation, Director, Extra, Params, Row, Span, Stage, Triggers } from '../lib/frame'
 import { STRIDE, ahead } from './walk'
 
 const FRAME_MS = 125
@@ -35,7 +35,6 @@ const AHA_AFTER_FRAMES = 16
 const CHEAT_SECONDS = 8
 const LONGEST_CHEAT_SECONDS = 60
 
-type Extra = { row: number; at: number; span: Span }
 type Spot = { at: number; side: 'left' | 'right' }
 
 // How many steps it has taken by `frame`.
@@ -96,14 +95,6 @@ const sweatAt = (frame: number, x: number, columns: number, spot: Spot | undefin
 
   return at >= 0 && at < columns ? [{ row: drop.row, at, span: { text: drop.glyph, color: SWEAT_COLOR } }] : []
 }
-
-const withExtras = (body: readonly Row[], extras: readonly Extra[]): Row[] =>
-  body.map((row, index) =>
-    layRow([
-      { at: row.indent, spans: row.spans },
-      ...extras.filter(extra => extra.row === index).map(extra => ({ at: extra.at, spans: [extra.span] })),
-    ]),
-  )
 
 const aha = (frame: number, x: number, columns: number): Row[] =>
   withExtras(

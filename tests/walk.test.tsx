@@ -754,3 +754,104 @@ test('an edit cuts into a thought, and the thought does not come back once it is
 
   await ui.unmount()
 })
+
+const PONG_FRAME_MS = 70
+const RALLY_FRAMES = 20
+const PONG_END_FRAMES = 18
+
+test('calling an API sets a rally going against its host, and a call that comes back ends it on a point', async ($, on) => {
+  const clock = mock.clock(on)
+  let land = () => {}
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  emptyBand(on)
+  on(
+    'tool.call',
+    () =>
+      new Promise<typeof ran>(resolve => {
+        land = () => resolve(ran)
+      }),
+  )
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...band(60), surface: 'terminal' })
+  const has = async (glyphs: string) =>
+    (await ui.find({ type: 'Text', text: glyphs })) !== undefined
+  const hasGround = async () =>
+    (await ui.findAll({ type: 'Text' })).some(found => String(found.text).includes('──────'))
+
+  const call = $.tool.call({ tool: 'Bash', command: 'cd /repo && curl -s https://api.github.com/user' })
+  await clock.advance(PONG_FRAME_MS * 5)
+  expect(await has('api.github.com')).toBe(true)
+  expect(await has('o')).toBe(true)
+  // The run is for commands that are not calls.
+  expect(await hasGround()).toBe(false)
+
+  // Out for longer than a rally, it just keeps playing.
+  await clock.advance(PONG_FRAME_MS * RALLY_FRAMES * 3)
+  expect(await has('api.github.com')).toBe(true)
+  expect(await has('Point!')).toBe(false)
+
+  // Back on frame 65: it plays on a rally, to the next ball on its own paddle at 100, then smashes.
+  land()
+  await call
+  await clock.advance(PONG_FRAME_MS * 39)
+  expect(await has('Point!')).toBe(false)
+  await clock.advance(PONG_FRAME_MS)
+  expect(await has('Point!')).toBe(true)
+  expect(await has(TORSO_ARMS_UP)).toBe(true)
+
+  await clock.advance(PONG_FRAME_MS * PONG_END_FRAMES)
+  expect(await has('Point!')).toBe(false)
+  expect(await has('api.github.com')).toBe(false)
+  expect(await has(TORSO)).toBe(true)
+
+  await ui.unmount()
+})
+
+test('a call that failed ends the rally on a miss, and a fetch plays the same game', async ($, on) => {
+  const clock = mock.clock(on)
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  emptyBand(on)
+  on('tool.call', () => ({ ...ran, text: 'curl: (7) Failed to connect', isError: true }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...band(60), surface: 'terminal' })
+  const has = async (glyphs: string) =>
+    (await ui.find({ type: 'Text', text: glyphs })) !== undefined
+
+  // Back at once: it still gets a rally, plays on another, then the ball comes back from the far paddle.
+  await $.tool.call({ tool: 'Bash', command: 'curl localhost:8080/health' })
+  expect(await has('localhost:8080')).toBe(true)
+  await clock.advance(PONG_FRAME_MS * 59)
+  expect(await has('Miss!')).toBe(false)
+  await clock.advance(PONG_FRAME_MS)
+  expect(await has('Miss!')).toBe(true)
+  await clock.advance(PONG_FRAME_MS * 8)
+  expect(await has('Miss!')).toBe(false)
+
+  await $.tool.call({ tool: 'WebFetch', url: 'https://example.com/docs', prompt: 'summarize' })
+  expect(await has('example.com')).toBe(true)
+
+  await ui.unmount()
+})
+
+test('the ping pong cheat plays four rallies against the name it was given, then takes the point', async ($, on) => {
+  const clock = mock.clock(on)
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  emptyBand(on)
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...band(60), surface: 'terminal' })
+  const has = async (glyphs: string) =>
+    (await ui.find({ type: 'Text', text: glyphs })) !== undefined
+
+  const answer = await $.prompt.submit({ text: 'buddy:ping-pong httpbin.org', wait: false, origin: { kind: 'composer' } })
+  expect(answer.drop).toBe('Buddy: ping pong with httpbin.org.')
+  expect(await has('httpbin.org')).toBe(true)
+  expect(await has('o')).toBe(true)
+
+  await clock.advance(PONG_FRAME_MS * (RALLY_FRAMES * 4 + 5))
+  expect(await has('Point!')).toBe(true)
+
+  await ui.unmount()
+})

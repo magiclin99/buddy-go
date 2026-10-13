@@ -1,4 +1,5 @@
 import { ARMS, FEET, GHOSTS, SPRITE_COLUMNS, SWEAT, SWEAT_COLOR, ghost, mascot } from '../lib/body'
+import { PREAMBLE, callsApi } from '../lib/command'
 import { frameIn, layRow } from '../lib/frame'
 import type { Animation, Params, Piece, Row, Span, Stage, Triggers } from '../lib/frame'
 import { opensPr } from './launch'
@@ -160,10 +161,6 @@ const piecesOf = (cells: readonly Cell[]): Piece[] => {
     spans: [{ text, ...(color === undefined ? {} : { color }), ...(dimColor === true ? { dimColor } : {}) }],
   }))
 }
-
-// What a command says before it gets to the point: the folders it steps into, and the variables it sets.
-const VALUE = String.raw`(?:"[^"]*"|'[^']*'|\$\([^)]*\)|[^\s;&|"'])`
-const PREAMBLE = new RegExp(String.raw`^(?:cd\s+${VALUE}+\s*(?:&&|;)\s*|[A-Za-z_]\w*=${VALUE}*\s+)+`)
 
 // One line of plain characters: anything wider than a column would push the banner out of shape. The
 // preamble is left off, or every command run from the same folder would read the same.
@@ -410,8 +407,8 @@ let latest: Params = {}
 
 export const runTriggers: Triggers = (on, director) => {
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
-    // Opening a PR has an animation of its own.
-    if (opensPr(e.command)) {
+    // Opening a PR and calling an API have animations of their own.
+    if (opensPr(e.command) || callsApi(e.command)) {
       return next(e)
     }
 
